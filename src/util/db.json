@@ -120,5 +120,10 @@
       "url": "https://img.hongyoubizhi.com/picture/pages/regular/2022/01/27/19/25/96212603_p0_master1200.jpg?x-oss-process=image/resize,w_450/format,jpg",
       "content": "这是内容20"
     }
-  ]
+  ],
+  "userInfo":{
+    "pic":"https://img.hongyoubizhi.com/picture/pages/regular/2025/03/16/18/132401228_p0_master1200.jpg?x-oss-process=image/resize,w_450/format,jpg",
+    "username":"默认名称",
+    "password":"000"
+  }
 }

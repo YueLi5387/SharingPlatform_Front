@@ -43,6 +43,7 @@ const rules = reactive<FormRules<FormModel>>({
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
+     { min: 6, max: 14, message: '密码长度为 6-14 个字符', trigger: 'blur' }
   ],
   repassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -76,6 +77,7 @@ const register = async (formEl: FormInstance | undefined) => {
   userStore.username = formModel.value.username
   userStore.password =formModel.value.password
   activeName.value = 'first'
+  
   ElMessage.success('注册成功！')
 }
 
