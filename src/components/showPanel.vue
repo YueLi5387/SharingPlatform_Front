@@ -8,8 +8,8 @@ type listType = {
   url: string,
   content: string
 }
-const props = defineProps<{ articleList: listType[] }>()
-const articleList = [...props.articleList]
+const props = defineProps<{ list: listType[] }>()
+
 // 移动端配置（详细看文档）
 const breakpoints = {
   1500: {
@@ -34,12 +34,12 @@ const breakpoints = {
 </script>
 <template>
   <div class="showPanel">
-    <Waterfall :list="articleList" :breakpoints="breakpoints" :gutter="20">
+    <Waterfall :list="props.list" :breakpoints="breakpoints" :gutter="20">
 
       <template #default="{ item }">
         <div class="card">
             <LazyImg :url="item.url" alt="" class="pic" />
-          <p class="title">{{ item.content }}</p>
+          <p class="title">{{ item.title }}</p>
         </div>
       </template>
     </Waterfall>

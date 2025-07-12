@@ -2,11 +2,34 @@
 import { useUserStore } from '@/stores/user';
 import { ref, reactive } from 'vue';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import type { UploadProps } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue';
 
 
 const userStore = useUserStore()
 
-// 修改个人资料
+//左侧头像上传
+const imageUrl = ref('')
+
+const handleAvatarSuccess: UploadProps['onSuccess'] = (
+  response,
+  uploadFile
+) => {
+  imageUrl.value = URL.createObjectURL(uploadFile.raw!)
+}
+
+const beforeAvatarUpload: UploadProps['beforeUpload'] = (rawFile) => {
+  if (rawFile.type !== 'image/jpeg') {
+    ElMessage.error('Avatar picture must be JPG format!')
+    return false
+  } else if (rawFile.size / 1024 / 1024 > 2) {
+    ElMessage.error('Avatar picture size can not exceed 2MB!')
+    return false
+  }
+  return true
+}
+
+//右侧 修改个人资料
 const formRef = ref<FormInstance>()
 type FormModel = {
   username: string,
@@ -57,7 +80,16 @@ const confirm = async (formEl: FormInstance | undefined) => {
     <div class="left">
       <div class="userinfo">
         <div class="pic">
-          <img :src="userStore.userPic" alt="">
+          <el-upload class="avatar-uploader" action="https://run.mocky.io/v3/9d059bf9-4660-45f2-925d-ce80ad6c4d15"
+            :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload">
+            <img :src="userStore.userPic" class="avatar" />
+            <!-- 这里要实现鼠标移入背景变暗的效果，方法是使用一个图层遮盖 -->
+            <div class="cover"></div>
+            <el-icon class="addIcon">
+              <Plus />
+            </el-icon>
+          </el-upload>
+
         </div>
         <div class="info">
           <p style="font-size: 20px;color: #545151;">{{ userStore.username }}</p>
@@ -65,29 +97,32 @@ const confirm = async (formEl: FormInstance | undefined) => {
         </div>
       </div>
     </div>
-    <el-card class="right">
-      <template #header>
-        <div class="card-header">
-          <h2>修改个人资料</h2>
-        </div>
-      </template>
-      <el-form ref="formRef" :model="formModel" :rules="rules" status-icon size="large">
-        <el-form-item prop="username">
-          <el-input v-model="formModel.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input v-model="formModel.password" type="password" placeholder="请输入密码" />
-        </el-form-item>
-        <el-form-item prop="repassword">
-          <el-input v-model="formModel.repassword" type="password" placeholder="请再次输入密码" />
-        </el-form-item>
+    <div class="right">
+      <el-card class="setting">
+        <template #header>
+          <div class="card-header">
+            <h2>修改个人资料</h2>
+          </div>
+        </template>
+        <el-form ref="formRef" :model="formModel" :rules="rules" status-icon size="large">
+          <el-form-item prop="username">
+            <el-input v-model="formModel.username" placeholder="请输入用户名" />
+          </el-form-item>
+          <el-form-item prop="password">
+            <el-input v-model="formModel.password" type="password" placeholder="请输入密码" />
+          </el-form-item>
+          <el-form-item prop="repassword">
+            <el-input v-model="formModel.repassword" type="password" placeholder="请再次输入密码" />
+          </el-form-item>
 
-        <el-form-item>
-          <el-button style="width: 100%; margin-top: 20px" type="primary" @click="confirm(formRef)">确认</el-button>
-        </el-form-item>
+          <el-form-item>
+            <el-button style="width: 100%; margin-top: 20px" type="primary" @click="confirm(formRef)">确认</el-button>
+          </el-form-item>
 
-      </el-form>
-    </el-card>
+        </el-form>
+      </el-card>
+    </div>
+
   </div>
 </template>
 <style lang="less" scoped>
@@ -96,6 +131,7 @@ const confirm = async (formEl: FormInstance | undefined) => {
   display: flex;
   justify-content: space-between;
   padding: 0px 20px;
+  gap: 20px;
 
   .left,
   .right {
@@ -104,9 +140,7 @@ const confirm = async (formEl: FormInstance | undefined) => {
   }
 
   .left {
-    height: 100%;
     padding-top: 10%;
-    line-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -117,9 +151,58 @@ const confirm = async (formEl: FormInstance | undefined) => {
       border-radius: 50%;
       border: 1px solid #ddb8b8;
 
-      img {
+      :deep(.avatar-uploader) {
         width: 100%;
-        border-radius: 50%;
+        height: 100%;
+
+        .el-upload {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          position: relative;
+          width: 100%;
+          height: 100%;
+
+          .avatar {
+            width: 100%;
+            border-radius: 50%;
+            border: 1px solid #000;
+
+          }
+
+          .cover {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            border-radius: 50%;
+            transition: all 0.4s;
+
+          }
+
+          .addIcon {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0);
+            transition: all 0.4s;
+
+
+          }
+
+          &:hover {
+            .cover {
+              background-color: rgba(0, 0, 0, 0.5);
+            }
+
+            .addIcon {
+              color: rgb(255, 255, 255, 1);
+            }
+          }
+        }
+
       }
 
       margin-bottom: 25px;
@@ -134,10 +217,22 @@ const confirm = async (formEl: FormInstance | undefined) => {
       }
     }
   }
+
   .right {
-    .card-header {
-      text-align: center;
+    // height: 100%;
+    // line-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .setting {
+      height: 500px;
+
+      .card-header {
+        text-align: center;
+      }
     }
   }
+
 }
 </style>

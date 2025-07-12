@@ -40,5 +40,7 @@ pnpm build
 
 ```
 遇到的问题：
-1.homePage里list只能直接赋值，无法从db文件里取得，id全变成了字符串
+1.homePage里list只能直接赋值，用json-server从db.json中获取数据后，id全变成了字符串  ----解决：不用json-server,改成用node写后端就没有问题了
+2.响应式布局问题，窗口放大缩小页面会乱
+3.用上ts后经常会有很多类型报错，有些复杂的难看懂
 ```

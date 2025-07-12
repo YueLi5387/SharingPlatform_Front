@@ -5,6 +5,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { addUser } from '@/api/user'
 
 
 const userStore = useUserStore()
@@ -43,7 +44,7 @@ const rules = reactive<FormRules<FormModel>>({
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-     { min: 6, max: 14, message: '密码长度为 6-14 个字符', trigger: 'blur' }
+    { min: 6, max: 14, message: '密码长度为 6-14 个字符', trigger: 'blur' }
   ],
   repassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -56,17 +57,17 @@ const rules = reactive<FormRules<FormModel>>({
 
 const router = useRouter()
 
-const changeActiveName = ()=>{
-  activeName.value = activeName.value==='first'?'second':'first'
+const changeActiveName = () => {
+  activeName.value = activeName.value === 'first' ? 'second' : 'first'
 }
 const login = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
   await formEl.validate()
-  if(formModel.value.username===userStore.username && formModel.value.password===userStore.password){
+  if (formModel.value.username === userStore.username && formModel.value.password === userStore.password) {
     userStore.remember = formModel.value.remember
     ElMessage.success('登录成功！')
     router.push({ path: '/' })
-  }else{
+  } else {
     ElMessage.error('用户名或密码错误')
   }
 }
@@ -75,14 +76,19 @@ const register = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
   await formEl.validate()
   userStore.username = formModel.value.username
-  userStore.password =formModel.value.password
+  userStore.password = formModel.value.password
   activeName.value = 'first'
+  const res = await addUser({
+    username: formModel.value.username,
+    password: formModel.value.password
+  })
+  console.log(res);
   
   ElMessage.success('注册成功！')
 }
 
 // 监听登录注册的切换，及时清空表单
-watch(activeName,()=>{ 
+watch(activeName, () => {
   formModel.value = {
     username: '',
     password: '',
@@ -90,11 +96,11 @@ watch(activeName,()=>{
     repassword: ''
   }
 })
-onMounted(()=>{
- if(formModel.value.remember){
-  formModel.value.password = userStore.password
-  formModel.value.username = userStore.username
- }
+onMounted(() => {
+  if (formModel.value.remember) {
+    formModel.value.password = userStore.password
+    formModel.value.username = userStore.username
+  }
 })
 </script>
 <template>
@@ -138,7 +144,8 @@ onMounted(()=>{
           </el-form-item>
 
           <el-form-item>
-            <el-button style="width: 100%; margin-top: 20px" type="primary" @click="register(registerFormRef)">注册</el-button>
+            <el-button style="width: 100%; margin-top: 20px" type="primary"
+              @click="register(registerFormRef)">注册</el-button>
           </el-form-item>
 
           <el-form-item class="register_third">
