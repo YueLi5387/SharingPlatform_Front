@@ -29,16 +29,13 @@ const instance: AxiosInstance = axios.create({
 // 请求拦截器
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    console.log(userStore.token);
-
+    // console.log(userStore.token);
     if (userStore.token) {
-      console.log("eee");
-
       config.headers = {
         ...config.headers,
         Authorization: userStore.token,
       } as AxiosRequestHeaders;
-      console.log(config.headers.Authorization);
+      // console.log(config.headers.Authorization);
     }
     return config;
   },

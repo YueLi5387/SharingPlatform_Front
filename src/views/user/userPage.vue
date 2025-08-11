@@ -156,7 +156,7 @@ const confirm = async (formEl: FormInstance | undefined) => {
 </template>
 <style lang="less" scoped>
 .user {
-  height: 100%;
+  height: 600px;
   display: flex;
   justify-content: space-between;
   width: 100%;
