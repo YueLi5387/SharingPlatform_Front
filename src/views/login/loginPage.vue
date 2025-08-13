@@ -5,7 +5,13 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { userLoginService, userRegisterService } from '@/api/user'
+// import type { userTokenType } from '@/types/user'
 
+type userTokenType = {
+  status: number;
+  message: string;
+  token: string;
+};
 
 const userStore = useUserStore()
 
@@ -68,9 +74,10 @@ const login = async (formEl: FormInstance | undefined) => {
   userStore.remember = formModel.value.remember//记住登录状态 
   userStore.username = formModel.value.username
   userStore.password = formModel.value.password
-  userStore.token = res.token
+
+  userStore.token = (res as unknown as userTokenType).token//报错说要先转换为unknown,虽然不知道为什么但是改了就不标红了
   ElMessage.success('登录成功！')
-  router.push({ path: '/' })
+  router.push({ path: '/home' })
 }
 
 const register = async (formEl: FormInstance | undefined) => {

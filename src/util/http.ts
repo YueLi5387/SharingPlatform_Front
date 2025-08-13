@@ -46,6 +46,8 @@ instance.interceptors.request.use(
 // 响应拦截器
 instance.interceptors.response.use(
   (response: AxiosResponse) => {
+    console.log("4334343");
+
     if (response.data.status === 0) {
       return response.data;
     } else {
@@ -54,6 +56,8 @@ instance.interceptors.response.use(
     }
   },
   (error: AxiosError) => {
+    console.log("gdgddggd");
+
     const errorMessage = (error.response?.data as { message?: string })?.message || "服务器错误";
     ElMessage.error(errorMessage);
 
@@ -61,7 +65,6 @@ instance.interceptors.response.use(
     if (error.response?.status === 401) {
       router.push("/login");
     }
-
     return Promise.reject(error);
   }
 );
