@@ -6,11 +6,9 @@ import { onMounted, ref } from 'vue';
 const list = ref([])
 const getList = async () => {
   const res = await getArticleList()
-  console.log(res);
-  list.value = res.data.data
-  console.log(list.value);
+  list.value = res.data
 }
-onMounted(()=>{getList()})
+onMounted(() => { getList() })
 
 </script>
 <template>
@@ -21,5 +19,6 @@ onMounted(()=>{getList()})
 <style lang="less" scoped>
 .home {
   height: 100%;
+  // min-width: 400px;
 }
 </style>

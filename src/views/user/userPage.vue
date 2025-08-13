@@ -17,9 +17,9 @@ const handleAvatarSuccess: UploadProps['onSuccess'] = async (
 ) => {
   console.log('上传成功：', response);
   const res = await getUserAvatarService();
-  console.log(res);
+  // console.log(res);
   userStore.userPic = 'http://localhost:8080' + res.data
-  console.log(userStore.userPic);
+  // console.log(userStore.userPic);
 
 }
 

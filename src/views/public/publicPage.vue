@@ -3,19 +3,19 @@ import { Plus } from '@element-plus/icons-vue'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
 import { ref } from 'vue'
-// import type { UploadProps } from 'element-plus'
-import type { UploadProps } from 'element-plus'
+import type { QuillEditor as QuillEditorType } from '@vueup/vue-quill';
+import { ElMessage, type UploadProps } from 'element-plus'
 import { addArticleService } from '@/api/article'
 
 // 表单
 const ruleFormRef = ref()
 const formData = ref<{
   title: string
-  imgURL: string
+  imgURL: Blob
   content: string
 }>({
   title: '',
-  imgURL: '',
+  imgURL: new Blob(),
   content: ''
 })
 // 校验规则
@@ -31,26 +31,28 @@ const rules = {
   ]
 }
 //图片上传
+const backupURL = ref('')//图片回显用
 const handleChange: UploadProps['onChange'] = (uploadFile) => {
-  formData.value.imgURL = URL.createObjectURL(uploadFile.raw as Blob);
-  console.log(formData.value.imgURL);
+  formData.value.imgURL = uploadFile.raw as Blob
+  backupURL.value = URL.createObjectURL(uploadFile.raw as Blob);
 }
+
+// 设置编辑器
+const editor = ref<InstanceType<typeof QuillEditorType> | null>(null)
 
 // 提交表单
 const submitForm = async () => {
   await ruleFormRef.value.validate()
-  console.log(formData.value);
   //转变为FormData格式
   const fd = new FormData()
   for (const key in formData.value) {
-    console.log(key);
-
-    fd.append(key, (formData.value as Record<string, string>)[key])
+    fd.append(key, (formData.value as Record<string, string | Blob>)[key])
   }
-  console.log("fd:", fd);
-  const res = await addArticleService(fd)
-
-
+  await addArticleService(fd)
+  ElMessage.success('新增成功!')
+  formData.value = { title: '', imgURL: new Blob(), content: '' }
+  backupURL.value = '' // 清空图片回显
+  editor.value?.setHTML('')//清空编辑器内容
 }
 </script>
 
@@ -64,7 +66,7 @@ const submitForm = async () => {
         <!-- 图片 -->
         <el-form-item label="文章封面" prop="imgURL">
           <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
-            <img v-if="formData.imgURL" :src="formData.imgURL" class="avatar" />
+            <img v-if="backupURL" :src="backupURL" class="avatar" />
             <el-icon v-else class="avatar-uploader-icon">
               <Plus />
             </el-icon>
@@ -72,7 +74,7 @@ const submitForm = async () => {
         </el-form-item>
         <el-form-item label="文章内容" prop="content">
           <div class="editor">
-            <QuillEditor theme="snow" v-model:content="formData.content" contentType="html">
+            <QuillEditor theme="snow" v-model:content="formData.content" contentType="html" ref="editor">
             </QuillEditor>
           </div>
         </el-form-item>

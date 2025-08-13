@@ -63,17 +63,15 @@ const toggleCollapse = () => {
               </el-icon>
               <span>用户</span>
             </el-menu-item>
-            <el-menu-item @click="toggleCollapse">
-              <!-- <el-button> -->
-              <el-icon v-if="!isCollapse">
+            <el-button @click="toggleCollapse" class="collapse-button" :class="{ 'is-collapsed': isCollapse }" text>
+              <el-icon v-if="!isCollapse" class="buttonIcon">
                 <ArrowLeftBold />
               </el-icon>
-              <el-icon v-else>
+              <el-icon v-else class="buttonIcon">
                 <ArrowRightBold />
               </el-icon>
-              <span>{{ isCollapse ? '展开' : '收起' }}</span>
-              <!-- </el-button> -->
-            </el-menu-item>
+              <span class="buttonText" v-show="!isCollapse">收起</span>
+            </el-button>
           </el-menu>
         </el-aside>
 
@@ -159,6 +157,29 @@ const toggleCollapse = () => {
       :deep(.el-main) {
         padding: 0px 20px;
         height: 100%;
+      }
+
+      //面板按钮样式----Collapse
+      .collapse-button {
+        height: 56px;
+        width: 100%;
+        display: flex;
+        justify-content: left;
+        padding: 0 20px;
+
+        &:hover {
+          background-color: rgb(236, 245, 255);
+          color: rgb(48, 49, 51);
+        }
+
+        .buttonIcon {
+          margin-right: 5px;
+          font-size: 18px;
+        }
+
+        .buttonText {
+          margin-left: 0px;
+        }
       }
     }
   }

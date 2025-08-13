@@ -35,7 +35,6 @@ instance.interceptors.request.use(
         ...config.headers,
         Authorization: userStore.token,
       } as AxiosRequestHeaders;
-      // console.log(config.headers.Authorization);
     }
     return config;
   },

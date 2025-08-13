@@ -1,7 +1,7 @@
-import axios from "axios";
 import http from "@/util/http";
 
-export const getArticleList = () => axios.get("/api/article/get");
+// 获取文章列表
+export const getArticleList = () => http.get("/api/article/get");
 
 //新增文章
 export const addArticleService = (data: object) => {

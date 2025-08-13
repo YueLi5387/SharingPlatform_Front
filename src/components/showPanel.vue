@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LazyImg, Waterfall } from 'vue-waterfall-plugin-next'
 import 'vue-waterfall-plugin-next/dist/style.css'
+import { ref } from 'vue';
 
 type listType = {
   id: number,
@@ -31,27 +32,89 @@ const breakpoints = {
     rowPerView: 1
   }
 }
+
+//是否展示详细内容
+const isShowDetail = ref(false)
+const idIndex = ref(0)//找到当前细节项的id的下标
+const showDetail = (id: number) => {
+  props.list.forEach((item, index) => {
+    if (item.id === id) {
+      idIndex.value = index
+    }
+  })
+  isShowDetail.value = true
+}
+
 </script>
 <template>
   <div class="showPanel">
     <Waterfall :list="props.list" :breakpoints="breakpoints" :gutter="20">
-
       <template #default="{ item }">
-        <div class="card">
-            <LazyImg :url="item.url" alt="" class="pic" />
+        <div class="card" @click="showDetail(item.id)">
+          <LazyImg :url="`http://localhost:8080${item.url}`" alt="" class="pic" />
           <p class="title">{{ item.title }}</p>
         </div>
       </template>
     </Waterfall>
+    <!-- 详情内容 -->
+    <el-dialog v-model="isShowDetail" :show-close="false">
+      <div class="left">
+        <el-image :src="`http://localhost:8080${props.list[idIndex].url}`" alt="图片不见啦！" fit="cover" style="width: 100%;"
+          height="100%" />
+      </div>
+      <div class="right">
+        <div v-html="props.list[idIndex].content"></div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped lang="less">
 .showPanel {
   height: 100%;
+
   .pic {
     border: 1px solid rgb(220, 220, 220);
     border-radius: 20px;
+  }
+
+
+  :deep(.el-dialog) {
+    height: 600px;
+    width: 700px;
+
+    .el-dialog__header {
+      padding-bottom: 0px;
+    }
+
+    .el-dialog__body {
+      padding: 0;
+      height: 100%;
+      display: flex;
+
+      .left {
+        // background-color: pink;
+        background-color: rgb(250, 250, 250);
+        width: 50%;
+        height: 100%;
+        // line-height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .right {
+        // background-color: rgb(250, 250, 250);
+        padding: 0px 5px;
+        width: 50%;
+        height: 100%;
+        // line-height: 100%;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+    }
   }
 }
 </style>
