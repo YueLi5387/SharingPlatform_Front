@@ -2,57 +2,35 @@
 import { useUserStore } from '@/stores/user';
 import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus'
-import type { UploadProps } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue';
 import type { FormModel } from '@/types/user';
 import type { FormInstance, FormRules } from 'element-plus'
 import { updateUserInfoService, getUserAvatarService } from '@/api/user';
+import http from '@/util/http';
 
 
 const userStore = useUserStore()
 
-//左侧头像上传
-const handleAvatarSuccess: UploadProps['onSuccess'] = async (
-  response,
-) => {
-  console.log('上传成功：', response);
-  const res = await getUserAvatarService();
-  // console.log(res);
-  userStore.userPic = 'http://localhost:8080' + res.data
-  // console.log(userStore.userPic);
-
+//左侧头像上传，自定义文件上传
+const customUpload = async (options: UploadRequestOptions) => {
+  const formData = new FormData();
+  formData.append('avatar', options.file);
+  try {
+    const response = await http.post('/my/userinfo/updateAvatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: userStore.token, // 手动传递 token
+      },
+    });
+    console.log('上传成功：', response);
+    const res = await getUserAvatarService();
+    userStore.userPic = 'http://localhost:8080' + res.data
+    ElMessage.success('修改成功!')
+  } catch (error) {
+    console.error('上传失败', error);
+  }
 }
-
-const handleError: UploadProps['onError'] = (error) => {
-  console.error('上传失败', error)
-}
-
-const uploadImg = {
-  "Authorization": userStore.token
-}
-
-
-// //左侧头像上传
-// const imageUrl = ref('')
-
-// const handleAvatarSuccess: UploadProps['onSuccess'] = (
-//   response,
-//   uploadFile
-// ) => {
-//   imageUrl.value = URL.createObjectURL(uploadFile.raw!)
-// }
-
-// const beforeAvatarUpload: UploadProps['beforeUpload'] = (rawFile) => {
-//   if (rawFile.type !== 'image/jpeg') {
-//     ElMessage.error('Avatar picture must be JPG format!')
-//     return false
-//   } else if (rawFile.size / 1024 / 1024 > 2) {
-//     ElMessage.error('Avatar picture size can not exceed 2MB!')
-//     return false
-//   }
-//   return true
-// }
-
 
 //右侧 修改个人资料
 const formRef = ref<FormInstance>()
@@ -108,9 +86,7 @@ const confirm = async (formEl: FormInstance | undefined) => {
     <div class="left">
       <div class="userinfo">
         <div class="pic">
-          <el-upload class="avatar-uploader" action="http://127.0.0.1:8080/my/userinfo/updateAvatar"
-            :show-file-list="false" :on-success="handleAvatarSuccess" :on-error="handleError" :headers="uploadImg"
-            name="avatar">
+          <el-upload class="avatar-uploader" :show-file-list="false" name="avatar" :http-request="customUpload">
             <el-image :src="userStore.userPic" class="avatar" fit="cover" />
             <!-- 这里要实现鼠标移入背景变暗的效果，方法是使用一个图层遮盖 -->
             <div class="cover"></div>

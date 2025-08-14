@@ -46,7 +46,7 @@ instance.interceptors.request.use(
 // 响应拦截器
 instance.interceptors.response.use(
   (response: AxiosResponse) => {
-    console.log("4334343");
+    // console.log("4334343");
 
     if (response.data.status === 0) {
       return response.data;
@@ -56,11 +56,9 @@ instance.interceptors.response.use(
     }
   },
   (error: AxiosError) => {
-    console.log("gdgddggd");
-
+    // console.log("Axios Error:", error.response);
     const errorMessage = (error.response?.data as { message?: string })?.message || "服务器错误";
     ElMessage.error(errorMessage);
-
     // 401 跳转登录
     if (error.response?.status === 401) {
       router.push("/login");
