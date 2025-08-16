@@ -11,3 +11,8 @@ export const addArticleService = (data: object) => {
     },
   });
 };
+
+//搜索文章
+export const searchArticleService = (str: string) => {
+  return http.get("/api/article/search", { params: { keywords: str } });
+};

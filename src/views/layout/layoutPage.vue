@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { provide, ref } from 'vue'
 import {
   Close,
   DocumentAdd,
@@ -7,17 +7,35 @@ import {
   Search,
   User,
 } from '@element-plus/icons-vue'
+import { searchArticleService } from '@/api/article'
+import { ElMessage } from 'element-plus'
+import router from '@/router'
 
 const isCollapse = ref(false)
 // 搜索
 const search_content = ref('')
 const clear_content = () => {
   search_content.value = ''
+  router.push('/home') // 清空搜索内容时跳转到首页
+}
+const searchList = ref([])
+provide('searchResult', searchList)
+const searchThings = async () => {
+  if (search_content.value.trim()) {
+    const res = await searchArticleService(search_content.value.trim())
+    console.log(res);
+    searchList.value = res.data
+    router.push('/search') // 跳转到搜索页面 
+  }
+  else {
+    ElMessage.error('请输入有效内容!')
+    search_content.value = ''
+  }
 }
 // 展开收起面板
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
-}
+} 
 </script>
 <template>
   <div class="layout">
@@ -26,14 +44,14 @@ const toggleCollapse = () => {
       <el-header class="head">
         <!-- 搜索 -->
         <div class="search">
-          <input placeholder="搜索" class="search-input" v-model="search_content" />
+          <input placeholder="宁可少字，不可多字、错字" class="search-input" v-model="search_content" />
           <span class="button">
             <el-button link size="large" @click="clear_content">
               <el-icon>
                 <Close />
               </el-icon>
             </el-button>
-            <el-button link size="large">
+            <el-button link size="large" @click="searchThings">
               <el-icon>
                 <Search />
               </el-icon>
@@ -55,7 +73,7 @@ const toggleCollapse = () => {
               <el-icon>
                 <DocumentAdd />
               </el-icon>
-              <span>发现</span>
+              <span>发布</span>
             </el-menu-item>
             <el-menu-item index="/user">
               <el-icon>

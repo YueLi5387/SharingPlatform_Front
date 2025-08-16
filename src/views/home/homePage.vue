@@ -19,6 +19,5 @@ onMounted(() => { getList() })
 <style lang="less" scoped>
 .home {
   height: 100%;
-  // min-width: 400px;
 }
 </style>
