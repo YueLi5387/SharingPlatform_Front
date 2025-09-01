@@ -9,7 +9,11 @@ import {
 } from '@element-plus/icons-vue'
 import { searchArticleService } from '@/api/article'
 import { ElMessage } from 'element-plus'
-import router from '@/router'
+import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
+
+const userStore = useUserStore()
+const router = useRouter()
 
 const isCollapse = ref(false)
 // 搜索
@@ -32,6 +36,13 @@ const searchThings = async () => {
     search_content.value = ''
   }
 }
+
+//去登录
+const login = () => {
+  router.push('/login')
+}
+
+
 // 展开收起面板
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
@@ -57,6 +68,23 @@ const toggleCollapse = () => {
               </el-icon>
             </el-button>
           </span>
+        </div>
+        <!-- 用户 -->
+        <div class="user">
+          <el-dropdown>
+            <div class="user-info">
+              <el-avatar size="default" :src="userStore.userPic"></el-avatar>
+              <span>{{ userStore.username ? userStore.username : '未登录' }}</span>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu v-if="userStore.username">
+                <el-dropdown-item @click="userStore.logout()">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+              <el-dropdown-menu v-else>
+                <el-dropdown-item @click="login">去登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
       <el-container class="body">
@@ -156,6 +184,28 @@ const toggleCollapse = () => {
         // outline属性是元素获得焦点（被选中、激活等情况 ）时显示的轮廓线
         .search-input:focus {
           outline: none;
+        }
+      }
+
+      // 媒体查询
+      @media (max-width: 900px) {
+        .search {
+          width: 300px;
+          left: 0%;
+          transform: translate(0%);
+        }
+
+      }
+
+      //用户信息
+      .user {
+        position: absolute;
+        right: 20px;
+
+        .user-info {
+          display: flex;
+          align-items: center;
+          gap: 10px; //flex盒子子元素之间的间距
         }
       }
     }

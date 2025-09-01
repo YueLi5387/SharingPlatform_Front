@@ -11,12 +11,22 @@ export const useUserStore = defineStore(
       "https://ts1.tc.mm.bing.net/th/id/OIP-C.UyaBji0AU_6M3VDA2F1RvgAAAA?r=0&rs=1&pid=ImgDetMain&o=7&rm=3"
     );
     const token = ref("");
+    // 清空用户信息：退出登录
+    const logout = () => {
+      username.value = "";
+      password.value = "";
+      remember.value = false;
+      userPic.value =
+        "https://ts1.tc.mm.bing.net/th/id/OIP-C.UyaBji0AU_6M3VDA2F1RvgAAAA?r=0&rs=1&pid=ImgDetMain&o=7&rm=3";
+      token.value = "";
+    };
     return {
       username,
       password,
       remember,
       userPic,
       token,
+      logout,
     };
   },
   {
