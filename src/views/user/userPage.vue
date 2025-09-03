@@ -8,8 +8,7 @@ import type { FormModel } from '@/types/user';
 import type { FormInstance, FormRules } from 'element-plus'
 import { updateUserInfoService, getUserAvatarService } from '@/api/user';
 import http from '@/util/http';
-// import { getUserInfoService } from '@/api/user';
-
+import { getUserArticleList } from '@/api/article';
 const userStore = useUserStore()
 
 //左侧头像上传，自定义文件上传
@@ -78,6 +77,15 @@ const confirm = async (formEl: FormInstance | undefined) => {
     repassword: ''
   }
 }
+const isShow = ref(false)//是否展示右侧修改页面
+// 获取该用户文章
+const userArticleList = ref([])
+const getUserArticles = async () => {
+  const res = await getUserArticleList(userStore.userId);
+  console.log(res);
+  userArticleList.value = res.data
+}
+getUserArticles()
 
 </script>
 <template>
@@ -98,12 +106,14 @@ const confirm = async (formEl: FormInstance | undefined) => {
         <div class="info">
           <p style="font-size: 20px;color: #545151;">{{ userStore.username }}</p>
           <p style="font-size: 15px;">{{ userStore.password }}</p>
+          <el-button link type="primary" v-if="!isShow" @click="isShow = true">修改用户信息 &gt; </el-button>
+          <el-button link type="primary" v-if="isShow" @click="isShow = false">显示作品 &lt; </el-button>
         </div>
       </div>
     </div>
     <!-- 右侧资料修改 -->
     <div class="right">
-      <el-card class="setting">
+      <el-card class="setting" v-if="isShow">
         <template #header>
           <div class="card-header">
             <h2>修改个人资料</h2>
@@ -126,7 +136,9 @@ const confirm = async (formEl: FormInstance | undefined) => {
 
         </el-form>
       </el-card>
-
+      <div class="userWorks" v-else>
+        <showPanel :list="userArticleList"></showPanel>
+      </div>
     </div>
   </div>
 </template>
@@ -236,6 +248,11 @@ const confirm = async (formEl: FormInstance | undefined) => {
       .card-header {
         text-align: center;
       }
+    }
+
+    .userWorks {
+      height: 100%;
+      overflow-y: auto;
     }
   }
 }
