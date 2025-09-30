@@ -9,6 +9,8 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { updateUserInfoService, getUserAvatarService } from '@/api/user';
 import http from '@/util/http';
 import { getUserArticleList } from '@/api/article';
+import showPanel from '@/components/showPanel.vue';
+
 const userStore = useUserStore()
 
 //左侧头像上传，自定义文件上传
@@ -137,7 +139,7 @@ getUserArticles()
         </el-form>
       </el-card>
       <div class="userWorks" v-else>
-        <showPanel :list="userArticleList"></showPanel>
+        <showPanel :list="userArticleList" :isUser="true" @reloadList="getUserArticles"></showPanel>
       </div>
     </div>
   </div>

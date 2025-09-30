@@ -3,6 +3,11 @@ import { LazyImg, Waterfall } from 'vue-waterfall-plugin-next'
 import 'vue-waterfall-plugin-next/dist/style.css'
 import { ref } from 'vue';
 import { getUserInfoByIdService } from '@/api/user';
+import { deleteArticleService } from '@/api/article';
+import { ElMessage } from 'element-plus';
+import type { DrawerProps } from 'element-plus'
+import EditPanel from './EditPanel.vue';
+
 
 type listType = {
   id: number,
@@ -11,7 +16,8 @@ type listType = {
   content: string,
   user_id: number
 }
-const props = defineProps<{ list: listType[] }>()
+const props = defineProps<{ list: listType[], isUser: boolean }>()
+const emit = defineEmits(['reloadList'])
 
 // 移动端配置（详细看文档）
 const breakpoints = {
@@ -40,6 +46,18 @@ const isShowDetail = ref(false)
 const idIndex = ref(0)//找到当前细节项的id的下标
 const detailUserPic = ref('')
 const detailUserName = ref('')
+
+//当前详情的所有信息
+const currentDetailInfo = ref<listType & { user_pic: string, username: string }>({
+  id: 0,
+  title: '',
+  url: '',
+  content: '',
+  user_id: 0,
+  user_pic: '',
+  username: ''
+})
+
 const showDetail = async (id: number) => {
   props.list.forEach((item, index) => {
     if (item.id === id) {
@@ -47,12 +65,43 @@ const showDetail = async (id: number) => {
     }
   })
   isShowDetail.value = true
-  // console.log(props.list[idIndex.value].id);
-
   const res = await getUserInfoByIdService(props.list[idIndex.value].user_id)
   detailUserPic.value = 'http://localhost:8080' + res.data.user_pic
   detailUserName.value = res.data.username
+  currentDetailInfo.value = {
+    ...props.list[idIndex.value],
+    url: 'http://localhost:8080' + props.list[idIndex.value].url,
+    user_id: res.data.id,
+    user_pic: detailUserPic.value,
+    username: detailUserName.value
+  }
+  console.log('当前的：', currentDetailInfo.value);
 }
+
+// 关闭详情页的回调
+const visible = ref(false)//删除弹出框是否显示
+
+const handleClose = () => {
+  visible.value = false
+  isShowDetail.value = false
+}
+
+//删除文章
+const deleteItem = async (id: number) => {
+  console.log(id);
+  const res = await deleteArticleService(id)
+  emit('reloadList')
+  console.log(res);
+  ElMessage.success('删除成功')
+  isShowDetail.value = false
+  // props.list.splice(idIndex.value, 1)
+  // isShowDetail.value = false 
+  visible.value = false
+}
+
+//文章编辑
+const drawer = ref(false)
+
 
 </script>
 <template>
@@ -66,19 +115,43 @@ const showDetail = async (id: number) => {
       </template>
     </Waterfall>
     <!-- 详情内容 -->
-    <el-dialog v-model="isShowDetail" :show-close="false">
+    <el-dialog v-model="isShowDetail" :show-close="false" :before-close="handleClose">
       <div class="left">
-        <el-image :src="`http://localhost:8080${props.list[idIndex].url}`" alt="图片不见啦！" fit="cover" style="width: 100%;"
+        <el-image :src="currentDetailInfo.url" alt="图片不见啦！" fit="cover" style="width: 100%;"
           height="100%" />
       </div>
       <div class="right">
         <div class="user-info">
-          <el-avatar size="default" :src="detailUserPic"></el-avatar>
-          <span class="user-name">{{ detailUserName }}</span>
+          <el-avatar size="default" :src="currentDetailInfo.user_pic"></el-avatar>
+          <span class="user-name">{{ currentDetailInfo.username }}</span>
         </div>
-        <div v-html="props.list[idIndex].content" class="content"></div>
+        <div v-html="currentDetailInfo.content" class="content"></div>
+        <div class="footer" v-if="props.isUser">
+          <el-button type="primary" link @click="drawer = true">编辑</el-button>
+          <el-divider direction="vertical" />
+          <el-popover :visible="visible" placement="top" :width="180">
+            <p>确定要删除吗?</p>
+            <div style="text-align: right; margin: 0">
+              <el-button size="small" type="primary" @click="visible = false">取消</el-button>
+              <el-button size="small" type="danger" @click="deleteItem(currentDetailInfo.id)">
+                确定
+              </el-button>
+            </div>
+            <template #reference>
+              <el-button type="danger" link @click="visible = true">删除</el-button>
+            </template>
+          </el-popover>
+        </div>
       </div>
     </el-dialog>
+    <!-- 编辑文章抽屉 -->
+    <el-drawer v-model="drawer" size="600">
+      <template #header="{ close, titleId, titleClass }">
+        <h3>编辑文章</h3>
+      </template>
+      <!-- <span>Hi, there!</span> -->
+      <EditPanel :panelType="'edit'" :currentDetailInfo="currentDetailInfo"></EditPanel>
+    </el-drawer>
   </div>
 </template>
 
@@ -141,8 +214,17 @@ const showDetail = async (id: number) => {
           flex-direction: column;
           justify-content: center;
         }
+
+        .footer {
+          width: 100%;
+          height: 24px;
+        }
       }
     }
+  }
+
+  :deep(.el-drawer__header) {
+    margin-bottom: 16px;
   }
 }
 </style>

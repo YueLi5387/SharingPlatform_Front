@@ -23,3 +23,17 @@ export const addArticleService = (data: object) => {
 export const searchArticleService = (str: string) => {
   return http.get("/api/article/search", { params: { keywords: str } });
 };
+
+//删除文章 
+export const deleteArticleService = (id: number) => {
+  return http.post("/my/articleinfo/deleteArticle", { data: { id } });
+}
+
+//编辑文章
+export const editArticleService = (data: object) => {
+  return http.post("/my/articleinfo/editArticle", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
