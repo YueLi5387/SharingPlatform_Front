@@ -67,7 +67,6 @@ const showDetail = async (id: number) => {
       idIndex.value = index
     }
   })
-  isShowDetail.value = true
   const res = await getUserInfoByIdService(props.list[idIndex.value].user_id)
   detailUserPic.value = 'http://localhost:8080' + res.data.user_pic
   detailUserName.value = res.data.username
@@ -78,15 +77,27 @@ const showDetail = async (id: number) => {
     user_pic: detailUserPic.value,
     username: detailUserName.value
   }
+  isShowDetail.value = true
   console.log('当前的：', currentDetailInfo.value);
 }
 
 // 关闭详情页的回调
 const visible = ref(false)//删除弹出框是否显示
-
+const videoRef = ref<InstanceType<typeof HTMLVideoElement> | null>(null);
 const handleClose = () => {
   visible.value = false
   isShowDetail.value = false
+  // 关闭前如果是视频需要重置
+  if (videoRef.value) {
+    console.log('erdshdi');
+
+    // 先暂停播放
+    videoRef.value.pause();
+    // 重置播放时间
+    videoRef.value.currentTime = 0;
+    //释放DOM引用（避免内存泄漏）
+    videoRef.value = null;
+  }
 }
 
 //删除文章
@@ -107,16 +118,12 @@ const drawer = ref(false)
 // 封面
 const videoFile = ref(null)
 const coverUrls = ref<Record<number, string>>({})//存放每个视频的封面
-
 // 生成封面的函数
 const generateCover = (item: any) => {
   console.log(item);
-
-  // const file = new File([item.url], 'video.mp4', { type: 'video/mp4' })
   const fileURL = `http://localhost:8080${item.url}`
   return new Promise((resolve) => {
     // 创建临时URL
-    // const url = URL.createObjectURL(file)
     const video = document.createElement('video')
 
     video.crossOrigin = "anonymous";
@@ -149,22 +156,6 @@ const generateCover = (item: any) => {
     }
   })
 }
-// const getVideoPic = async (item: any) => {
-//   await generateCover(item)
-//   console.log(coverUrls.value[item.id]);
-//   // return coverUrls.value[item.id]
-// }
-
-// onMounted(async () => {
-// // 遍历列表，找到视频文件生成封面
-// for (const item of props.list) {
-//   if (item.url.includes('.')) {
-//     await generateCover(item)
-//   }
-// }
-// })
-
-// const batchGenerateCovers = 
 
 // 监听列表变化，重新生成封面
 watch(() => props.list, async (newList) => {
@@ -188,13 +179,6 @@ watch(() => props.list, async (newList) => {
           <LazyImg
             url="https://s1.aigei.com/src/img/gif/d8/d8431b7e5cc44e8ca32026a9e001fa77.gif?imageMogr2/auto-orient/thumbnail/!176x132r/gravity/Center/crop/176x132/quality/85/%7CimageView2/2/w/176&e=2051020800&token=P7S2Xpzfz11vAkASLTkfHN7Fw-oOZBecqeJaxypL:Ocm1xLaGfOCs4tF4lvYshfG3q8Y="
             alt="" class="pic" v-else />
-          <!-- <div v-else class="pic" style="width: 400px;
-          height: 200px;display: flex;align-items: center;justify-content: center;">
-            <el-icon>
-              <Loading />
-            </el-icon>
-          </div> -->
-          <!-- <video :src="item.url" v-else></video> -->
           <p class="title">{{ item.title }}</p>
         </div>
       </template>
@@ -202,7 +186,10 @@ watch(() => props.list, async (newList) => {
     <!-- 详情内容 -->
     <el-dialog v-model="isShowDetail" :show-close="false" :before-close="handleClose">
       <div class="left">
-        <el-image :src="currentDetailInfo.url" alt="图片不见啦！" fit="cover" style="width: 100%;" height="100%" />
+        <el-image :src="currentDetailInfo.url" alt="图片不见啦！" fit="cover" style="width: 100%;" height="100%"
+          v-if="!currentDetailInfo.url.includes('.')" />
+        <video :src="currentDetailInfo.url" controls="true" style="width: 100%;" height="100%" v-else
+          ref="videoRef"></video>
       </div>
       <div class="right">
         <div class="user-info">
@@ -233,7 +220,6 @@ watch(() => props.list, async (newList) => {
       <template #header="{ close, titleId, titleClass }">
         <h3>编辑文章</h3>
       </template>
-      <!-- <span>Hi, there!</span> -->
       <EditPanel :panelType="'edit'" :currentDetailInfo="currentDetailInfo"></EditPanel>
     </el-drawer>
   </div>
