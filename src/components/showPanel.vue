@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { LazyImg, Waterfall } from 'vue-waterfall-plugin-next'
 import 'vue-waterfall-plugin-next/dist/style.css'
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { getUserInfoByIdService } from '@/api/user';
 import { deleteArticleService } from '@/api/article';
 import { ElMessage } from 'element-plus';
 import type { DrawerProps } from 'element-plus'
 import EditPanel from './EditPanel.vue';
+import { Loading } from '@element-plus/icons-vue';
 
 
 type listType = {
@@ -18,6 +19,8 @@ type listType = {
 }
 const props = defineProps<{ list: listType[], isUser: boolean }>()
 const emit = defineEmits(['reloadList'])
+console.log(props);
+
 
 // 移动端配置（详细看文档）
 const breakpoints = {
@@ -94,14 +97,85 @@ const deleteItem = async (id: number) => {
   console.log(res);
   ElMessage.success('删除成功')
   isShowDetail.value = false
-  // props.list.splice(idIndex.value, 1)
-  // isShowDetail.value = false 
   visible.value = false
 }
 
 //文章编辑
 const drawer = ref(false)
 
+// 视频的显示
+// 封面
+const videoFile = ref(null)
+const coverUrls = ref<Record<number, string>>({})//存放每个视频的封面
+
+// 生成封面的函数
+const generateCover = (item: any) => {
+  console.log(item);
+
+  // const file = new File([item.url], 'video.mp4', { type: 'video/mp4' })
+  const fileURL = `http://localhost:8080${item.url}`
+  return new Promise((resolve) => {
+    // 创建临时URL
+    // const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+
+    video.crossOrigin = "anonymous";
+    video.src = fileURL
+    video.currentTime = 0.1 // 设置到第0.1秒
+
+    video.onloadeddata = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      // 设置canvas尺寸
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      // 绘制视频帧
+      ctx!.drawImage(video, 0, 0)
+
+      // 转换为图片
+      const dataUrl = canvas.toDataURL('image/jpeg')
+      coverUrls.value[item.id] = dataUrl;
+
+      // 清理内存
+      URL.revokeObjectURL(fileURL)
+
+      resolve(dataUrl)
+    }
+    video.onerror = (err) => {
+      console.error("视频加载错误", err);
+      resolve(`http://localhost:8080${item.url}`); // 错误时返回视频本身的URL
+    }
+  })
+}
+// const getVideoPic = async (item: any) => {
+//   await generateCover(item)
+//   console.log(coverUrls.value[item.id]);
+//   // return coverUrls.value[item.id]
+// }
+
+// onMounted(async () => {
+// // 遍历列表，找到视频文件生成封面
+// for (const item of props.list) {
+//   if (item.url.includes('.')) {
+//     await generateCover(item)
+//   }
+// }
+// })
+
+// const batchGenerateCovers = 
+
+// 监听列表变化，重新生成封面
+watch(() => props.list, async (newList) => {
+  // batchGenerateCovers(newList);
+  // 遍历列表，找到视频文件生成封面
+  for (const item of newList) {
+    if (item.url.includes('.')) {
+      await generateCover(item)
+    }
+  }
+}, { immediate: true, deep: true });
 
 </script>
 <template>
@@ -110,7 +184,17 @@ const drawer = ref(false)
       <template #default="{ item }">
         <div class="card" @click="showDetail(item.id)">
           <LazyImg :url="`http://localhost:8080${item.url}`" alt="" class="pic" v-if="!item.url.includes('.')" />
-          <video :src="item.url" v-else></video>
+          <LazyImg :url="coverUrls[item.id]" alt="" class="pic" v-else-if="coverUrls[item.id]" />
+          <LazyImg
+            url="https://s1.aigei.com/src/img/gif/d8/d8431b7e5cc44e8ca32026a9e001fa77.gif?imageMogr2/auto-orient/thumbnail/!176x132r/gravity/Center/crop/176x132/quality/85/%7CimageView2/2/w/176&e=2051020800&token=P7S2Xpzfz11vAkASLTkfHN7Fw-oOZBecqeJaxypL:Ocm1xLaGfOCs4tF4lvYshfG3q8Y="
+            alt="" class="pic" v-else />
+          <!-- <div v-else class="pic" style="width: 400px;
+          height: 200px;display: flex;align-items: center;justify-content: center;">
+            <el-icon>
+              <Loading />
+            </el-icon>
+          </div> -->
+          <!-- <video :src="item.url" v-else></video> -->
           <p class="title">{{ item.title }}</p>
         </div>
       </template>

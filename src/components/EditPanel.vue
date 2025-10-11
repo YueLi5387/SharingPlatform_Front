@@ -113,6 +113,8 @@ const sparkHash = () => {
 }
 
 const uploadToBehind = async () => {
+  // console.log('开始上传：',new  Date());
+
   // 构造FormDatas数组
   const formDatas = fileDetailList.value.map(item => {
     const formData = new FormData()
@@ -172,7 +174,10 @@ const uploadToBehind = async () => {
     content: formData.value.content,
   })
   console.log(res);
-
+  formData.value = { title: '', imgURL: new Blob(), content: '' }
+  backupURL.value = '' // 清空图片回显
+  editor.value?.setHTML('')//清空编辑器内容
+  ElMessage.success(res.message)
 }
 
 // 秒传
@@ -185,6 +190,8 @@ const verify = async (fileHash: string, fileName: string) => {
 }
 
 const videoUpload = async () => {
+  console.log('开始上传：', new Date());
+
   fileChunksList.value = []//清空分片数组
   const rawValue = toRaw(videoUploadFile.value)
   console.log(rawValue);
@@ -200,6 +207,8 @@ const videoUpload = async () => {
   // 计算哈希
   const fileHash = await sparkHash()
   console.log('fileHash', fileHash);
+  console.log('哈希计算完成', new Date());
+
 
   // 秒传   ---如果改文件已经上传过就不再分片，直接添加文章
   const isExists = await verify(fileHash as string, rawValue.name)
@@ -211,11 +220,13 @@ const videoUpload = async () => {
       user_id: userStore.userId,
       content: formData.value.content,
     })
-    console.log(res);
+    console.log('成功', res);
     formData.value = { title: '', imgURL: new Blob(), content: '' }
     backupURL.value = '' // 清空图片回显
     editor.value?.setHTML('')//清空编辑器内容
     ElMessage.success(res.message)
+    console.log('结束上传：', new Date());
+
   } else {
     // 构造详细分片数组
     fileDetailList.value = fileChunksList.value.map((item, index) => {
@@ -227,10 +238,10 @@ const videoUpload = async () => {
       }
     })
     // 上传视频切片
-    uploadToBehind()
+    await uploadToBehind()
+    console.log('结束上传：', new Date());
+
   }
-
-
 }
 
 // 提交表单
@@ -294,7 +305,6 @@ watch(() => props.currentDetailInfo, (newVal) => {
       <!-- 图片 -->
       <el-form-item label="文章配图" prop="imgURL">
         <div style="display: flex; align-items: flex-start;">
-
 
           <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
             <template #trigger>
