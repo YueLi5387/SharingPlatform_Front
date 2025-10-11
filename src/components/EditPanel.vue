@@ -5,7 +5,7 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css'
 import { ref, toRaw, toRef, toRefs, watch } from 'vue'
 import type { QuillEditor as QuillEditorType } from '@vueup/vue-quill';
 import { ElMessage, type UploadProps } from 'element-plus'
-import { addArticleService, addArticleVideoService, addLargeFileArticleService, checkFileRequest, editArticleService, mergeRequest } from '@/api/article'
+import { addArticleService, addArticleVideoService, addLargeFileArticleService, checkFileRequest, editArticleService, editLargeFileArticleService, mergeRequest } from '@/api/article'
 import { useUserStore } from '@/stores/user'
 import SparkMD5 from 'spark-md5'
 import type { FileChunkType } from '@/types/user'
@@ -166,18 +166,35 @@ const uploadToBehind = async () => {
   })
 
   // 合并完成后添加文章
-  const res = await addLargeFileArticleService({
-    fileHash: fileDetailList.value[0].fileHash,
-    fileName: fileDetailList.value[0].fileName,
-    title: formData.value.title,
-    user_id: userStore.userId,
-    content: formData.value.content,
-  })
-  console.log(res);
+  if (props.panelType === 'public') {
+    const res = await addLargeFileArticleService({
+      fileHash: fileDetailList.value[0].fileHash,
+      fileName: fileDetailList.value[0].fileName,
+      title: formData.value.title,
+      user_id: userStore.userId,
+      content: formData.value.content,
+    })
+    console.log(res);
+    ElMessage.success(res.message)
+  }
+  else {
+    // 编辑文章
+    const res = await editLargeFileArticleService({
+      fileHash: fileDetailList.value[0].fileHash,
+      fileName: fileDetailList.value[0].fileName,
+      title: formData.value.title,
+      user_id: userStore.userId,
+      content: formData.value.content,
+      id: props.currentDetailInfo!.id
+    })
+    console.log(res);
+    ElMessage.success(res.message)
+    window.location.reload()
+  }
   formData.value = { title: '', imgURL: new Blob(), content: '' }
   backupURL.value = '' // 清空图片回显
   editor.value?.setHTML('')//清空编辑器内容
-  ElMessage.success(res.message)
+  return
 }
 
 // 秒传
@@ -213,18 +230,35 @@ const videoUpload = async () => {
   // 秒传   ---如果改文件已经上传过就不再分片，直接添加文章
   const isExists = await verify(fileHash as string, rawValue.name)
   if (isExists) {
-    const res = await addLargeFileArticleService({
-      fileHash: fileHash,
-      fileName: rawValue.name,
-      title: formData.value.title,
-      user_id: userStore.userId,
-      content: formData.value.content,
-    })
-    console.log('成功', res);
+    //添加文章
+    if (props.panelType === 'public') {
+      const res = await addLargeFileArticleService({
+        fileHash: fileHash,
+        fileName: rawValue.name,
+        title: formData.value.title,
+        user_id: userStore.userId,
+        content: formData.value.content,
+      })
+      console.log('成功添加', res);
+      ElMessage.success(res.message)
+    } else {
+      // 编辑文章
+      const res = await editLargeFileArticleService({
+        fileHash: fileHash,
+        fileName: rawValue.name,
+        title: formData.value.title,
+        user_id: userStore.userId,
+        content: formData.value.content,
+        id: props.currentDetailInfo!.id
+      })
+      console.log('成功编辑', res);
+      window.location.reload()
+      ElMessage.success(res.message)
+
+    }
     formData.value = { title: '', imgURL: new Blob(), content: '' }
     backupURL.value = '' // 清空图片回显
     editor.value?.setHTML('')//清空编辑器内容
-    ElMessage.success(res.message)
     console.log('结束上传：', new Date());
 
   } else {
@@ -240,7 +274,6 @@ const videoUpload = async () => {
     // 上传视频切片
     await uploadToBehind()
     console.log('结束上传：', new Date());
-
   }
 }
 
@@ -273,7 +306,7 @@ const submitForm = async () => {
     }
 
     formData.value = { title: '', imgURL: new Blob(), content: '' }
-    videoUploadFile.value = new File([], '') // 清空视频文件
+    // videoUploadFile.value = new File([], '') // 清空视频文件
     backupURL.value = '' // 清空文件回显
     editor.value?.setHTML('')//清空编辑器内容
   }
@@ -305,7 +338,6 @@ watch(() => props.currentDetailInfo, (newVal) => {
       <!-- 图片 -->
       <el-form-item label="文章配图" prop="imgURL">
         <div style="display: flex; align-items: flex-start;">
-
           <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
             <template #trigger>
               <el-button type="primary" plain>上传文件</el-button>
@@ -344,13 +376,31 @@ watch(() => props.currentDetailInfo, (newVal) => {
         <el-input v-model="formData.title" placeholder="请输入标题" maxlength="15" show-word-limit />
       </el-form-item>
       <!-- 图片 -->
-      <el-form-item label="文章封面" prop="imgURL">
-        <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
+      <el-form-item label="文章配图" prop="imgURL">
+        <div style="display: flex; align-items: flex-start;">
+          <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
+            <template #trigger>
+              <el-button type="primary" plain>上传文件</el-button>
+            </template>
+          </el-upload>
+          <div class="avatar-show" style="margin-right: 16px;">
+            <div class="avatar" v-if="backupURL">
+              <img :src="backupURL" style="width: 100%;
+              height: 100%;" v-if="isPic" />
+              <video :src="backupURL" v-else style="width: 100%;
+              height: 100%;" controls></video>
+            </div>
+            <el-icon v-else class="avatar-uploader-icon">
+              <Plus />
+            </el-icon>
+          </div>
+        </div>
+        <!-- <el-upload :show-file-list="false" class="avatar-uploader" :auto-upload="false" @change="handleChange">
           <img v-if="backupURL" :src="backupURL" class="avatar" />
           <el-icon v-else class="avatar-uploader-icon">
             <Plus />
           </el-icon>
-        </el-upload>
+        </el-upload> -->
       </el-form-item>
       <el-form-item label="文章内容" prop="content">
         <div class="editor">

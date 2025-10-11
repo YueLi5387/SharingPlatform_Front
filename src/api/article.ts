@@ -61,3 +61,8 @@ export const editArticleService = (data: object) => {
     },
   });
 };
+
+//编辑大文件文章
+export const editLargeFileArticleService = (data: object) => {
+  return http.post("/my/articleinfo/editArticleLargeFile", data);
+};
