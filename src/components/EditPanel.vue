@@ -112,19 +112,22 @@ const sparkHash = () => {
   })
 }
 
-const uploadToBehind = async () => {
-  // console.log('开始上传：',new  Date());
-
+const uploadToBehind = async (existChunks = []) => {
   // 构造FormDatas数组
-  const formDatas = fileDetailList.value.map(item => {
-    const formData = new FormData()
-    formData.append('fileHash', item.fileHash)
-    formData.append('chunkIndex', item.chunkIndex)
-    formData.append('chunk', item.chunk)
-    formData.append('fileName', item.fileName)
-    return formData
-  })
-  console.log(formDatas);
+  const formDatas = fileDetailList.value
+    .filter((item, index) => {
+      // 过滤服务器上已经有的切片
+      return !existChunks.includes(item.fileHash)
+    })
+    .map(item => {
+      const formData = new FormData()
+      formData.append('fileHash', item.fileHash)
+      formData.append('chunkIndex', item.chunkIndex)
+      formData.append('chunk', item.chunk)
+      formData.append('fileName', item.fileName)
+      return formData
+    })
+  console.log('formDatas:', formDatas);
   // 发送请求
   const max_count = 6 // 最大并发数
   let index = 0
@@ -147,7 +150,7 @@ const uploadToBehind = async () => {
         if (id > -1) {
           taskPool.splice(id, 1)
         }
-        throw new Error('上传失败')
+        // throw new Error('上传失败')
       })
     taskPool.push(task)
     if (taskPool.length === max_count) {
@@ -203,7 +206,7 @@ const verify = async (fileHash: string, fileName: string) => {
     fileHash,
     fileName,
   })
-  return res.data.isExists
+  return res.data
 }
 
 const videoUpload = async () => {
@@ -228,7 +231,8 @@ const videoUpload = async () => {
 
 
   // 秒传   ---如果改文件已经上传过就不再分片，直接添加文章
-  const isExists = await verify(fileHash as string, rawValue.name)
+  const data = await verify(fileHash as string, rawValue.name)
+  const isExists = data.isExists
   if (isExists) {
     //添加文章
     if (props.panelType === 'public') {
@@ -272,7 +276,7 @@ const videoUpload = async () => {
       }
     })
     // 上传视频切片
-    await uploadToBehind()
+    await uploadToBehind(data.existChunks)
     console.log('结束上传：', new Date());
   }
 }
