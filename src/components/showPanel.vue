@@ -78,7 +78,7 @@ const showDetail = async (id: number) => {
     username: detailUserName.value
   }
   isShowDetail.value = true
-  console.log('当前的：', currentDetailInfo.value);
+  // console.log('当前的：', currentDetailInfo.value);
 }
 
 // 关闭详情页的回调
@@ -102,10 +102,10 @@ const handleClose = () => {
 
 //删除文章
 const deleteItem = async (id: number) => {
-  console.log(id);
+  // console.log(id);
   const res = await deleteArticleService(id)
   emit('reloadList')
-  console.log(res);
+  // console.log(res);
   ElMessage.success('删除成功')
   isShowDetail.value = false
   visible.value = false
@@ -120,7 +120,7 @@ const videoFile = ref(null)
 const coverUrls = ref<Record<number, string>>({})//存放每个视频的封面
 // 生成封面的函数
 const generateCover = (item: any) => {
-  console.log(item);
+  // console.log(item);
   const fileURL = `http://localhost:8080${item.url}`
   return new Promise((resolve) => {
     // 创建临时URL

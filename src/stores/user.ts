@@ -1,4 +1,5 @@
 // import { refreshTokenService } from "@/api/token";
+// import { refreshTokenService } from "@/api/token";
 import { ElMessage } from "element-plus";
 import { defineStore } from "pinia";
 import { ref } from "vue";
@@ -27,14 +28,6 @@ export const useUserStore = defineStore(
       userId.value = "";
       ElMessage.success("已退出!");
     };
-
-    // // 刷新token函数
-    // const refreshTokenFun = async () => {
-    //   console.log("fdfd");
-
-    //   const res = await refreshTokenService();
-    //   console.log("store:", res);
-    // };
 
     return {
       username,
