@@ -3,6 +3,8 @@ export type FormModel = {
   username: string;
   password: string;
   repassword: string;
+  gender: string;
+  age: number | null;
 };
 
 // 获取用户信息返回的格式

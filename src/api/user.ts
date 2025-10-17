@@ -32,3 +32,13 @@ export const getUserInfoByIdService = (id: number) => {
     },
   });
 };
+
+//获取用户性别比
+export const getEchartsGender = () => {
+  return http.get("/my/userinfo/getEchartsGender");
+};
+
+//获取用户年龄分布
+export const getEchartsAge = () => {
+  return http.get("/my/userinfo/getEchartsAge");
+};

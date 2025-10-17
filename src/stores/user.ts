@@ -1,5 +1,6 @@
 // import { refreshTokenService } from "@/api/token";
 // import { refreshTokenService } from "@/api/token";
+import router from "@/router";
 import { ElMessage } from "element-plus";
 import { defineStore } from "pinia";
 import { ref } from "vue";
@@ -13,6 +14,8 @@ export const useUserStore = defineStore(
     const userPic = ref(
       "https://ts1.tc.mm.bing.net/th/id/OIP-C.UyaBji0AU_6M3VDA2F1RvgAAAA?r=0&rs=1&pid=ImgDetMain&o=7&rm=3"
     );
+    const userGender = ref("男");
+    const userAge = ref<number | null>(0);
     const userId = ref();
     const token = ref("");
     const refreshToken = ref("");
@@ -20,12 +23,15 @@ export const useUserStore = defineStore(
     const logout = () => {
       username.value = "";
       password.value = "";
+      userGender.value = "男";
+      userAge.value = 0;
       remember.value = false;
       userPic.value =
         "https://ts1.tc.mm.bing.net/th/id/OIP-C.UyaBji0AU_6M3VDA2F1RvgAAAA?r=0&rs=1&pid=ImgDetMain&o=7&rm=3";
       token.value = "";
       refreshToken.value = "";
       userId.value = "";
+      router.push("/home");
       ElMessage.success("已退出!");
     };
 
@@ -39,6 +45,8 @@ export const useUserStore = defineStore(
       refreshToken,
       logout,
       // refreshTokenFun,
+      userGender,
+      userAge,
     };
   },
   {

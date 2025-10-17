@@ -8,7 +8,7 @@ import {
   User,
 } from '@element-plus/icons-vue'
 import { searchArticleService } from '@/api/article'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 
@@ -42,6 +42,23 @@ const login = () => {
   router.push('/login')
 }
 
+// 去管理员界面
+const toAdmin = () => {
+  ElMessageBox.prompt('请输入管理员凭证', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPattern:
+      /^(123456)$/,
+    inputErrorMessage: '凭证错误',
+  })
+    .then(() => {
+      router.push('/admin')
+      ElMessage({
+        type: 'success',
+        message: `跳转成功！`,
+      })
+    })
+}
 
 // 展开收起面板
 const toggleCollapse = () => {
@@ -69,14 +86,12 @@ const toggleCollapse = () => {
             </el-button>
           </span>
         </div>
-        <!-- 管理员界面 -->
-        <!-- <el-button type="primary" text>管理员界面</el-button> -->
         <!-- 用户 -->
         <div class="user">
 
           <!-- 管理员界面  -->
           <el-button type="primary" link style="margin-right: 5px; height: 100%; line-height: 100%; font-size: 12px;"
-            @click="router.push('/admin')">管理员</el-button>
+            @click="toAdmin">管理员</el-button>
           <!-- <el-button type="primary" link
             style="margin-right: 3px;height: 100%;line-height: 100%;font-size: 12px;">管理员界面</el-button> -->
           <el-dropdown>

@@ -86,7 +86,11 @@ const login = async (formEl: FormInstance | undefined) => {
   //一登录成功就要获取用户信息
   const res2 = await getUserInfoService();
   userStore.userId = res2.data.id;
-  userStore.userPic = 'http://localhost:8080' + res2.data.user_pic;
+  userStore.userPic = res2.data.user_pic ? 'http://localhost:8080' + res2.data.user_pic : userStore.userPic;
+  userStore.userGender = res2.data.gender;
+  userStore.userAge = res2.data.age;
+  userStore.username = res2.data.username;
+  userStore.password = formModel.value.password;
 }
 
 const register = async (formEl: FormInstance | undefined) => {
