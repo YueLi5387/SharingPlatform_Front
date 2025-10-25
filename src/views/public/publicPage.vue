@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
 import EditPanel from '@/components/EditPanel.vue';
+
 </script>
 
 <template>

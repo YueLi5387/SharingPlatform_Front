@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import showPanel from '@/components/showPanel.vue';
 import { inject } from 'vue';
+
+
 const list = inject('searchResult') as Array<{
   id: number,
   title: string,

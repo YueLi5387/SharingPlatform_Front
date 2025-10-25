@@ -44,7 +44,7 @@ const login = () => {
 
 // 去管理员界面
 const toAdmin = () => {
-  ElMessageBox.prompt('请输入管理员凭证', {
+  ElMessageBox.prompt('测试凭证：123456', '请输入管理员凭证', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     inputPattern:
