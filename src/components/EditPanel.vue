@@ -131,36 +131,54 @@ const uploadToBehind = async (existChunks = []) => {
     })
   console.log('formDatas:', formDatas);
   // 发送请求
-  const max_count = 6 // 最大并发数
-  let index = 0
-  const taskPool: Promise<any>[] = []//请求队列
+  const maxCount = 6; // 最大并发数
+  const total = formDatas.length;
+  let completedCount = 0; // 已完成任务数
+  let resolveAll: any;
+  const allDone = new Promise(resolve => {
+    resolveAll = resolve;
+  });
 
-  while (index < formDatas.length) {
-    const task = addArticleVideoService(formDatas[index])
-      .then(res => {
-        console.log('res:', res);
-        console.log(res.data);
-        // if(formDatas)
-        const id = taskPool.findIndex(item => item === task)
-        if (id > -1) {
-          taskPool.splice(id, 1)
-        }
-        return res.data
-      }).catch(err => {
-        console.log(err);
-        const id = taskPool.findIndex(item => item === task)
-        if (id > -1) {
-          taskPool.splice(id, 1)
-        }
-        // throw new Error('上传失败')
-      })
-    taskPool.push(task)
-    if (taskPool.length === max_count) {
-      await Promise.race(taskPool)
+  // 2. 构建“待执行任务队列”（每个任务返回Promise）
+  const taskQueue = formDatas.map((formData, index) => {
+    // 封装单个分片上传任务
+    return () => {
+      const currentIndex = index;
+      return addArticleVideoService(formData)
+        .then(res => {
+          // console.log(`分片 ${currentIndex + 1}/${total} 上传成功`);
+          return res.data;
+        })
+        .catch(err => {
+          // console.error(`分片 ${currentIndex + 1}/${total} 上传失败`, err);
+        })
+        .finally(() => {
+          completedCount++;
+          // 任务完成后，从“待执行队列”取任务补充
+          if (taskQueue.length > 0) {
+            const nextTask = taskQueue.shift(); // 取出下一个任务
+            if (nextTask) {
+              nextTask().then(); // 执行下一个任务
+            }
+          }
+          // 所有任务完成
+          if (completedCount === total) {
+            resolveAll();
+          }
+        });
+    };
+  });
+
+  // 3. 启动初始任务（填充到最大并发数）
+  for (let i = 0; i < maxCount && taskQueue.length > 0; i++) {
+    const task = taskQueue.shift();
+    if (task) {
+      task().then();
     }
-    index++
   }
-  await Promise.all(taskPool)
+
+  // 4. 等待所有任务完成
+  await allDone;
   console.log('所有分片上传完成');
 
   // 发送切片合并请求
