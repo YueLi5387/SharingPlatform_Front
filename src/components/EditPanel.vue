@@ -92,27 +92,6 @@ const fileChunksList = ref<Blob[]>([])//原始分片数组
 const fileDetailList = ref<FileChunkType[]>([])//分片详细信息数组
 
 
-// // 计算文件哈希(增量算法，完整计算分片)
-// const sparkHash = () => {
-//   return new Promise((resolve) => {
-//     const spark = new SparkMD5.ArrayBuffer()
-//     function _read(i: number) {
-
-//       if (i >= fileChunksList.value.length) {
-//         resolve(spark.end())
-//         return
-//       }
-//       const blob = fileChunksList.value[i]
-//       const fileReader = new FileReader()
-//       fileReader.readAsArrayBuffer(blob)
-//       fileReader.onload = (e) => {
-//         spark.append(e.target?.result as ArrayBuffer)
-//         _read(i + 1)
-//       }
-//     }
-//     _read(0)
-//   })
-// }
 
 const uploadToBehind = async (existChunks = []) => {
   // 构造FormDatas数组
@@ -238,7 +217,7 @@ const videoUpload = async () => {
   const rawValue = toRaw(videoUploadFile.value)
   console.log(rawValue)
 
-  // 视频里的简洁实现：把分片任务分配给 THREAD_COUNT 个 worker，每个 worker 负责一段索引区间
+  //把分片任务分配给 THREAD_COUNT 个 worker，每个 worker 负责一段索引区间
   const totalFileSize = rawValue.size // 文件总大小
   const chunkCount = Math.ceil(totalFileSize / CHUNK_SIZE)
   const THREAD_COUNT = Math.min(navigator.hardwareConcurrency || 4, chunkCount)// 使用核心数和分片数的较小值作为线程数

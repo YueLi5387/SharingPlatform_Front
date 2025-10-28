@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" defer>
 import showPanel from '@/components/showPanel.vue';
 import { getArticleList } from '@/api/article';
 import { onMounted, ref } from 'vue';
