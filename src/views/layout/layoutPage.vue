@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { provide, ref } from 'vue'
 import {
+  Bicycle,
+  ChatRound,
   Close,
   DocumentAdd,
   Promotion,
@@ -126,6 +128,19 @@ const toggleCollapse = () => {
               </el-icon>
               <span>发布</span>
             </el-menu-item>
+            <el-menu-item index="/travel">
+              <el-icon>
+                <Bicycle />
+              </el-icon>
+              <span>找旅友</span>
+            </el-menu-item>
+            <el-menu-item index="/chat">
+              <el-icon>
+                <ChatRound />
+              </el-icon>
+              <span>聊天室</span>
+            </el-menu-item>
+
             <el-menu-item index="/user">
               <el-icon>
                 <User />

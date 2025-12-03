@@ -26,3 +26,13 @@ export type FileChunkType = {
   chunkIndex: string;
   fileName: string;
 };
+
+//聊天室列表格式
+export type ChatMessageType = {
+  text: string;
+  side: "left" | "right" | "middle";
+  userId: number;
+  date: string;
+  listId: number;
+  name: string;
+};
