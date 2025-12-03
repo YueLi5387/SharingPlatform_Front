@@ -89,21 +89,16 @@ onUnmounted(() => {
 <template>
   <div class="chatPage">
     <div class="chat-main">
-      <!-- 使用虚拟列表优化性能 -->
       <div class="messages" ref="containerRef">
-        <!-- 空div，用于撑起容器的高度，确保能够正确滚动 -->
-        <div class="space"></div>
-        <div class="list">
-          <div v-for="item in messages" :key="item.listId" :class="['msg', item.side]">
-            <template v-if="item.side !== 'middle'">
-              <div class="meta username">{{ item.name }}</div>
-              <div class="bubble">{{ item.text }}</div>
-              <div class="meta time">{{ item.date }}</div>
-            </template>
-            <template v-else>
-              <div class="bubble">{{ item.text }}</div>
-            </template>
-          </div>
+        <div v-for="item in messages" :key="item.listId" :class="['msg', item.side]">
+          <template v-if="item.side !== 'middle'">
+            <div class="meta username">{{ item.name }}</div>
+            <div class="bubble">{{ item.text }}</div>
+            <div class="meta time">{{ item.date }}</div>
+          </template>
+          <template v-else>
+            <div class="bubble">{{ item.text }}</div>
+          </template>
         </div>
       </div>
     </div>
