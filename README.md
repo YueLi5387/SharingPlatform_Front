@@ -40,3 +40,4 @@ pnpm dev
 
 <video controls width="100%" style="max-width:800px;" src="https://my-demo-video.oss-cn-hangzhou.aliyuncs.com/%E8%BD%BB%E7%BA%A2%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4">
 </video>
+<iframe id="video" width="560" height="315" src="https://my-demo-video.oss-cn-hangzhou.aliyuncs.com/%E8%BD%BB%E7%BA%A2%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen=""></iframe>
