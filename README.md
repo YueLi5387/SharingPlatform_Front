@@ -38,5 +38,4 @@ pnpm dev
 
 ## 效果演示
 
-<video controls width="100%" style="max-width:800px;" src="https://my-demo-video.oss-cn-hangzhou.aliyuncs.com/%E8%BD%BB%E7%BA%A2%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4">
-</video>
+[点击下载演示视频](https://my-demo-video.oss-cn-hangzhou.aliyuncs.com/%E8%BD%BB%E7%BA%A2%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4)
