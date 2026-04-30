@@ -12,7 +12,7 @@ import axios, {
 import { ElMessage } from "element-plus";
 import { useUserStore } from "@/stores/user";
 
-type MyRequestConfig = InternalAxiosRequestConfig & { _isRefresh?: boolean };
+type MyRequestConfig = InternalAxiosRequestConfig & { _isRefresh?: boolean; _noMessage?: boolean };
 
 // 基地址
 const baseURL: string = "http://localhost:8080";
@@ -34,7 +34,7 @@ const refreshTokenFun = async () => {
     },
     _isRefresh: true, //判断现在发送的是不是刷新token的请求，避免请求拦截器携带了过期的短token
   } as MyRequestConfig);
-  console.log("重新请求了:", res);
+  // console.log("重新请求了:", res);
   const { refresh_token, access_token } = res.data;
   userStore.refreshToken = refresh_token;
   userStore.token = access_token;
@@ -60,7 +60,7 @@ instance.interceptors.request.use(
   },
   (error: AxiosError) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // 响应拦截器
@@ -88,6 +88,7 @@ instance.interceptors.response.use(
         return Promise.reject(error);
       }
       await refreshTokenFun();
+      console.log("刷新成功");
 
       // 更新token后重新请求原始请求
       error.config!.headers = {
@@ -97,9 +98,11 @@ instance.interceptors.response.use(
       const res = await instance.request(error.config as InternalAxiosRequestConfig);
       return res;
     }
-    ElMessage.error(errorMessage);
+    if (!(error.config as MyRequestConfig)?._noMessage) {
+      ElMessage.error(errorMessage);
+    }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default instance;

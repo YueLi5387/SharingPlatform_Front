@@ -25,7 +25,8 @@ export const addArticleVideoService = (data: object) => {
     headers: {
       "Content-Type": "multipart/form-data",
     },
-  });
+    _noMessage: true, // 静默分片上传的报错，由组件统一处理
+  } as any);
 };
 
 // 文件切片合并请求

@@ -67,7 +67,7 @@ const backupURL = ref('')//图片回显
 const isPic = ref(true)//是否是图片
 const videoUploadFile = ref()//视频文件
 const handleChange: UploadProps['onChange'] = (uploadFile) => {
-  // console.log('uploadFile:', uploadFile);
+  console.log('uploadFile:', uploadFile);
   if (uploadFile.raw!.type.startsWith('image/')) {
     isPic.value = true
     formData.value.imgURL = uploadFile.raw as Blob
@@ -96,9 +96,9 @@ const fileDetailList = ref<FileChunkType[]>([])//分片详细信息数组
 const uploadToBehind = async (existChunks = []) => {
   // 构造FormDatas数组
   const formDatas = fileDetailList.value
-    .filter((item, index) => {
+    .filter((item) => {
       // 过滤服务器上已经有的切片
-      return !existChunks.includes(item.fileHash)
+      return !existChunks.includes(item.chunkIndex)
     })
     .map(item => {
       const formData = new FormData()
@@ -111,52 +111,67 @@ const uploadToBehind = async (existChunks = []) => {
   // 发送请求
   const maxCount = 6; // 最大并发数
   const total = formDatas.length;
+  if (total === 0) return; // 如果没有需要上传的切片，直接跳过
+
   let completedCount = 0; // 已完成任务数
+  let isError = false; // 是否发生错误（用于熔断）
   let resolveAll: any;
-  const allDone = new Promise(resolve => {
+  let rejectAll: any;
+  const allDone = new Promise((resolve, reject) => {
     resolveAll = resolve;
+    rejectAll = reject;
   });
 
-  // 2. 构建“待执行任务队列”（每个任务返回Promise）
-  const taskQueue = formDatas.map((formData, index) => {
+  //  构建“待执行任务队列”
+  const taskQueue = formDatas.map((item, index) => {
     // 封装单个分片上传任务
-    return () => {
-      const currentIndex = index;
-      return addArticleVideoService(formData)
-        .then(res => {
-          // console.log(`分片 ${currentIndex + 1}/${total} 上传成功`);
-          return res.data;
-        })
-        .catch(err => {
-          // console.error(`分片 ${currentIndex + 1}/${total} 上传失败`, err);
-        })
-        .finally(() => {
-          completedCount++;
-          // 任务完成后，从“待执行队列”取任务补充
-          if (taskQueue.length > 0) {
-            const nextTask = taskQueue.shift(); // 取出下一个任务
-            if (nextTask) {
-              nextTask().then(); // 执行下一个任务
-            }
-          }
-          // 所有任务完成
-          if (completedCount === total) {
-            resolveAll();
-          }
-        });
+    return async function uploadTask(retry = 3): Promise<void> {
+      if (isError) return;
+
+      try {
+        await addArticleVideoService(item);
+        completedCount++;
+        // 成功后，所有任务完成则 resolve
+        if (completedCount === total) {
+          resolveAll();
+        }
+      } catch (err) {
+        if (retry > 0) {
+          // 还有重试机会，重新执行当前任务
+          return uploadTask(retry - 1);
+        } else {
+          // 重试次数用完，触发熔断
+          isError = true;
+          rejectAll('发布失败，请检查网络连接');
+          return;
+        }
+      } finally {
+        // 任务完成后（无论成功还是重试失败），只要没发生熔断，就从队列取下一个任务补充
+        if (!isError && taskQueue.length > 0) {
+          const nextTask = taskQueue.shift();
+          if (nextTask) nextTask();
+        }
+      }
     };
   });
 
-  // 3. 启动初始任务（填充到最大并发数）
+  // 3. 启动初始任务
   for (let i = 0; i < maxCount && taskQueue.length > 0; i++) {
     const task = taskQueue.shift();
     if (task) {
-      task().then();
+      task();
     }
   }
 
   // 4. 等待所有任务完成
-  await allDone;
+  try {
+    await allDone;
+  } catch (err) {
+    console.error(err);
+    ElMessage.error(typeof err === 'string' ? err : '发布失败，请检查网络连接');
+    fullscreenLoading.value = false;
+    return; // 发生错误，终止后续合并和添加文章逻辑
+  }
   // console.log('所有分片上传完成');
 
   // 发送切片合并请求
@@ -210,113 +225,119 @@ const videoUpload = async () => {
   // console.time('分片+hash时间');
 
   fullscreenLoading.value = true
-  fileChunksList.value = [] // 清空分片数组
-  const rawValue = toRaw(videoUploadFile.value)
-  // console.log(rawValue)
+  try {
+    fileChunksList.value = [] // 清空分片数组
+    const rawValue = toRaw(videoUploadFile.value)//作用：获取原始文件对象，避免响应式代理
+    // console.log(rawValue)
 
-  //把分片任务分配给 THREAD_COUNT 个 worker，每个 worker 负责一段索引区间
-  const totalFileSize = rawValue.size // 文件总大小
-  const chunkCount = Math.ceil(totalFileSize / CHUNK_SIZE)
-  const THREAD_COUNT = Math.min(navigator.hardwareConcurrency || 4, chunkCount)// 使用核心数和分片数的较小值作为线程数
+    //把分片任务分配给 THREAD_COUNT 个 worker，每个 worker 负责一段索引区间
+    const totalFileSize = rawValue.size // 文件总大小
+    const chunkCount = Math.ceil(totalFileSize / CHUNK_SIZE)
+    const THREAD_COUNT = Math.min(navigator.hardwareConcurrency || 4, chunkCount)// 使用核心数和分片数的较小值作为线程数
 
-  // 创建多个 worker，分配分片计算任务，收集结果并扁平化返回
-  const cutFile = (file: File) => {
-    return new Promise<any[]>((resolve, reject) => {
-      const result: any[] = []
-      let finishCount = 0
-      for (let i = 0; i < THREAD_COUNT; i++) {
-        const worker = new Worker(new URL('../util/worker.js', import.meta.url), { type: 'module' })
-        // 计算该 worker 负责的分片区间
-        const start = Math.floor((i * chunkCount) / THREAD_COUNT)
-        let end = Math.floor(((i + 1) * chunkCount) / THREAD_COUNT)
-        if (end > chunkCount) end = chunkCount
+    // 创建多个 worker，分配分片计算任务，收集结果并扁平化返回
+    const cutFile = (file: File) => {
+      return new Promise<any[]>((resolve, reject) => {
+        const result: any[] = []
+        let finishCount = 0
+        for (let i = 0; i < THREAD_COUNT; i++) {
+          const worker = new Worker(new URL('../util/worker.js', import.meta.url), { type: 'module' })
+          // 计算该 worker 负责的分片区间
+          const start = Math.floor((i * chunkCount) / THREAD_COUNT)
+          let end = Math.floor(((i + 1) * chunkCount) / THREAD_COUNT)
+          if (end > chunkCount) end = chunkCount
 
-        worker.postMessage({ file, CHUNK_SIZE, start, end })
-        worker.onmessage = (e: MessageEvent) => {
-          // worker 返回一个数组（该区间的 chunk 列表）
-          result[i] = e.data
-          worker.terminate()
-          finishCount++
-          if (finishCount === THREAD_COUNT) {
-            // 扁平化并返回
-            resolve((result as any[]).flat())
+          worker.postMessage({ file, CHUNK_SIZE, start, end })
+          worker.onmessage = (e: MessageEvent) => {
+            // worker 返回一个数组（该区间的 chunk 列表）
+            result[i] = e.data
+            worker.terminate()
+            finishCount++
+            if (finishCount === THREAD_COUNT) {
+              // 扁平化并返回
+              resolve((result as any[]).flat())
+            }
+          }
+          worker.onerror = (err) => {
+            worker.terminate()
+            reject('文件解析失败，请检查网络连接')
           }
         }
-        worker.onerror = (err) => {
-          worker.terminate()
-          reject(err)
-        }
-      }
-    })
-  }
-
-  // 调用 cutFile 获取所有 chunk 对象（每个对象包含 index, blob, hash）
-  const chunks = await cutFile(rawValue as File)
-  // 按 index 排序
-  chunks.sort((a: any, b: any) => a.index - b.index)
-
-  // 用每个分片的 hash 拼接后再计算整体 hash（避免在主线程读大量 ArrayBuffer）
-  const spark = new SparkMD5()
-  for (const c of chunks) {
-    spark.append(c.hash)
-  }
-  const fileHash = spark.end()
-
-  // 把 blob 列表赋给 fileChunksList 保持原逻辑不变
-  fileChunksList.value = chunks.map((c: any) => c.blob)
-  // console.log('fileHash', fileHash)
-  console.timeEnd('分片+hash时间')
-
-
-  // 秒传   ---如果改文件已经上传过就不再分片，直接添加文章
-  const data = await verify(fileHash as string, rawValue.name)
-  const isExists = data.isExists
-  if (isExists) {
-    //添加文章
-    if (props.panelType === 'public') {
-      const res = await addLargeFileArticleService({
-        fileHash: fileHash,
-        fileName: rawValue.name,
-        title: formData.value.title,
-        user_id: userStore.userId,
-        content: formData.value.content,
       })
-      // console.log('成功添加', res);
-      fullscreenLoading.value = false
-      ElMessage.success(res.message)
-    } else {
-      // 编辑文章
-      const res = await editLargeFileArticleService({
-        fileHash: fileHash,
-        fileName: rawValue.name,
-        title: formData.value.title,
-        user_id: userStore.userId,
-        content: formData.value.content,
-        id: props.currentDetailInfo!.id
-      })
-      fullscreenLoading.value = false
-      window.location.reload()
-      ElMessage.success(res.message)
-
     }
-    formData.value = { title: '', imgURL: new Blob(), content: '' }
-    backupURL.value = '' // 清空图片回显
-    editor.value?.setHTML('')//清空编辑器内容
 
-  } else {
-    // 构造详细分片数组
-    fileDetailList.value = fileChunksList.value.map((item, index) => {
-      return {
-        chunk: item, //分片内容
-        fileHash: fileHash as string, //文件哈希，强制类型为string
-        chunkIndex: `${fileHash}-${index}`, //分片索引哈希
-        fileName: rawValue.name, //文件名
+    // 调用 cutFile 获取所有 chunk 对象（每个对象包含 index, blob, hash）
+    const chunks = await cutFile(rawValue as File)
+    // 按 index 排序            --1.25:这个排序似乎是多余的
+    chunks.sort((a: any, b: any) => a.index - b.index)
+
+    // 用每个分片的 hash 拼接后再计算整体 hash（避免在主线程读大量 ArrayBuffer）
+    const spark = new SparkMD5()
+    for (const c of chunks) {
+      spark.append(c.hash)
+    }
+    const fileHash = spark.end()
+
+    // 把 blob 列表赋给 fileChunksList 保持原逻辑不变
+    fileChunksList.value = chunks.map((c: any) => c.blob)
+    // console.log('fileHash', fileHash)
+    console.timeEnd('分片+hash时间')
+
+
+    // 秒传   ---如果改文件已经上传过就不再上传分片，直接添加文章
+    const data = await verify(fileHash as string, rawValue.name)
+    const isExists = data.isExists
+    if (isExists) {
+      //添加文章
+      if (props.panelType === 'public') {
+        const res = await addLargeFileArticleService({
+          fileHash: fileHash,
+          fileName: rawValue.name,
+          title: formData.value.title,
+          user_id: userStore.userId,
+          content: formData.value.content,
+        })
+        // console.log('成功添加', res);
+        fullscreenLoading.value = false
+        ElMessage.success(res.message)
+      } else {
+        // 编辑文章
+        const res = await editLargeFileArticleService({
+          fileHash: fileHash,
+          fileName: rawValue.name,
+          title: formData.value.title,
+          user_id: userStore.userId,
+          content: formData.value.content,
+          id: props.currentDetailInfo!.id
+        })
+        fullscreenLoading.value = false
+        window.location.reload()
+        ElMessage.success(res.message)
+
       }
-    })
-    // 上传视频切片
-    await uploadToBehind(data.existChunks)
+      formData.value = { title: '', imgURL: new Blob(), content: '' }
+      backupURL.value = '' // 清空图片回显
+      editor.value?.setHTML('')//清空编辑器内容
+
+    } else {
+      // 构造详细分片数组
+      fileDetailList.value = fileChunksList.value.map((item, index) => {
+        return {
+          chunk: item, //分片内容
+          fileHash: fileHash as string, //文件哈希，强制类型为string
+          chunkIndex: `${fileHash}-${index}`, //分片索引哈希
+          fileName: rawValue.name, //文件名
+        }
+      })
+      // 上传视频切片
+      await uploadToBehind(data.existChunks)
+      fullscreenLoading.value = false
+      // console.log('结束上传：', new Date());
+    }
+  } catch (err) {
+    console.error('上传出错:', err)
+    ElMessage.error(typeof err === 'string' ? err : '上传失败，请检查网络连接')
     fullscreenLoading.value = false
-    // console.log('结束上传：', new Date());
   }
 }
 
