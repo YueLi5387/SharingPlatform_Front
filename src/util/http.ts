@@ -30,24 +30,29 @@ const refreshTokenFun = async () => {
   if (promise) {
     return promise;
   }
-  promise = new Promise(async (resolve) => {
-    console.log("进入refreshToken");
-    const userStore = useUserStore();
-    const res = await instance.get("/api/refreshToken", {
+
+  console.log("进入refreshToken");
+  const userStore = useUserStore();
+  // 直接保存刷新请求：成功时 resolve，失败时 reject，供并发的 401 请求复用
+  promise = instance
+    .get("/api/refreshToken", {
       headers: {
         Authorization: userStore.refreshToken,
       },
       _isRefresh: true, //判断现在发送的是不是刷新token的请求，避免请求拦截器携带了过期的短token
-    } as MyRequestConfig);
-    // console.log("重新请求了:", res);
-    const { refresh_token, access_token } = res.data;
-    userStore.refreshToken = refresh_token;
-    userStore.token = access_token;
-    resolve(res);
-  });
-  promise.finally(() => {
-    promise = null;
-  });
+    } as MyRequestConfig)
+    .then((res) => {
+      // 响应拦截器返回 response.data，后端的新 token 位于 res.data 中
+      const { refresh_token, access_token } = res.data;
+      userStore.refreshToken = refresh_token;
+      userStore.token = access_token;
+      return res;
+    })
+    .finally(() => {
+      // 无论刷新成功或失败，都释放共享 Promise，避免后续请求被旧状态卡住
+      promise = null;
+    });
+
   return promise;
 };
 
