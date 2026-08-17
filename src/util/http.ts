@@ -14,6 +14,19 @@ import { useUserStore } from "@/stores/user";
 
 type MyRequestConfig = InternalAxiosRequestConfig & { _isRefresh?: boolean; _noMessage?: boolean };
 
+const displayedErrorMessages = new Set<string>();
+
+const showErrorMessage = (message: string) => {
+  if (displayedErrorMessages.has(message)) return;
+
+  displayedErrorMessages.add(message);
+  ElMessage.error(message);
+
+  window.setTimeout(() => {
+    displayedErrorMessages.delete(message);
+  }, 2000);
+};
+
 // 基地址
 const baseURL: string = "http://localhost:8080";
 
@@ -85,7 +98,7 @@ instance.interceptors.response.use(
     if (response.data.status === 0) {
       return response.data;
     } else {
-      ElMessage.error(response.data.message || "请求失败");
+      showErrorMessage(response.data.message || "请求失败");
       return Promise.reject(response.data);
     }
   },
@@ -100,7 +113,7 @@ instance.interceptors.response.use(
       if ((error.config as MyRequestConfig)?._isRefresh) {
         // 刷新token请求都失败了，说明刷新token也过期了，直接跳登录
         router.push("/login");
-        ElMessage.error("请登录");
+        showErrorMessage("请登录");
         return Promise.reject(error);
       }
       await refreshTokenFun();
@@ -115,7 +128,7 @@ instance.interceptors.response.use(
       return res;
     }
     if (!(error.config as MyRequestConfig)?._noMessage) {
-      ElMessage.error(errorMessage);
+      showErrorMessage(errorMessage);
     }
     return Promise.reject(error);
   },
