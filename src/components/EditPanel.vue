@@ -2,7 +2,7 @@
 import { Plus } from '@element-plus/icons-vue'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
-import { ref, toRaw, toRef, toRefs, watch } from 'vue'
+import { onBeforeUnmount, ref, toRaw, watch } from 'vue'
 import type { QuillEditor as QuillEditorType } from '@vueup/vue-quill';
 import { ElMessage, type UploadProps } from 'element-plus'
 import { addArticleService, addArticleVideoService, addLargeFileArticleService, checkFileRequest, editArticleService, editLargeFileArticleService, mergeRequest } from '@/api/article'
@@ -19,6 +19,19 @@ type currentDetailInfoType = {
   url: string,
   content: string,
 }
+
+type WorkerChunkType = {
+  index: number
+  blob: Blob
+  hash: string
+}
+
+type MessageResponse = {
+  message: string
+}
+
+// 接口拦截器会把成功提示挂到返回值的 message 上，这里统一取出它。
+const getMessage = (res: unknown) => (res as MessageResponse).message
 
 const props = defineProps<{ panelType: string, currentDetailInfo?: currentDetailInfoType }>()
 
@@ -39,7 +52,7 @@ const formData = ref<{
 })
 // 校验规则
 // 编辑器要特殊判空，可能是它组件设计问题，一旦输入内容后再删除，值变为"<p><br></p>"，而不是""
-const checkNull = (rule: any, value: any, callback: any) => {
+const checkNull = (rule: unknown, value: string, callback: (error?: Error) => void) => {
   if (!value.trim() || value === '<p><br></p>') {
     return callback(new Error('请输入文章内容'))
   }
@@ -86,6 +99,73 @@ const handleChange: UploadProps['onChange'] = (uploadFile) => {
 const editor = ref<InstanceType<typeof QuillEditorType> | null>(null)
 
 const userStore = useUserStore()
+
+// --- 多标签页上传协同 ---
+const uploadChannel = new BroadcastChannel('file_upload_sync');
+const LOCK_EXPIRE_TIME = 10000 // 心跳超过 10 秒未收到，视为锁已过期
+const HEARTBEAT_INTERVAL = 3000 // 上传页每 3 秒同步一次状态
+// 记录其他标签页正在上传的文件 Hash 和过期时间
+const remoteUploadingHashes = ref(new Map<string, number>());
+let heartbeatTimer: number | undefined
+let currentUploadingHash: string | null = null
+let isUploadChannelClosed = false
+
+uploadChannel.onmessage = (event) => {
+  // 其他标签页发来“开始上传”或“心跳”时，刷新该文件的状态有效期。
+  const { type, fileHash, expiresAt } = event.data;
+  if (type === 'UPLOAD_START' || type === 'UPLOAD_HEARTBEAT') {
+    remoteUploadingHashes.value.set(fileHash, expiresAt);
+  }
+  if (type === 'UPLOAD_END') remoteUploadingHashes.value.delete(fileHash);
+};
+
+// 判断其他标签页是否仍在上传该文件；超时的旧状态会在这里顺手清理。
+const isRemoteUploading = (fileHash: string) => {
+  const expiresAt = remoteUploadingHashes.value.get(fileHash)
+  if (!expiresAt) return false
+  if (expiresAt <= Date.now()) {
+    remoteUploadingHashes.value.delete(fileHash)
+    return false
+  }
+  return true
+}
+
+// 当前标签页拿到浏览器锁后调用：先通知其他标签页，再定时发送心跳续期。
+const startUploadHeartbeat = (fileHash: string) => {
+  if (isUploadChannelClosed) return
+  currentUploadingHash = fileHash
+  // 每条状态消息都带新的过期时间，接收方不用维护额外的定时器。
+  const syncUploadStatus = (type: 'UPLOAD_START' | 'UPLOAD_HEARTBEAT') => {
+    uploadChannel.postMessage({
+      type,
+      fileHash,
+      expiresAt: Date.now() + LOCK_EXPIRE_TIME,
+    })
+  }
+  syncUploadStatus('UPLOAD_START')
+  heartbeatTimer = window.setInterval(() => syncUploadStatus('UPLOAD_HEARTBEAT'), HEARTBEAT_INTERVAL)
+}
+
+// 结束上传时调用：停止心跳，并让其他标签页立即移除该文件的上传状态。
+const stopUploadHeartbeat = (fileHash: string) => {
+  if (heartbeatTimer !== undefined) {
+    window.clearInterval(heartbeatTimer)
+    heartbeatTimer = undefined
+  }
+  if (!isUploadChannelClosed) {
+    uploadChannel.postMessage({ type: 'UPLOAD_END', fileHash })
+  }
+  currentUploadingHash = null
+}
+
+// 组件销毁时主动清理定时器和频道，防止组件卸载后继续发送消息。
+onBeforeUnmount(() => {
+  if (currentUploadingHash) stopUploadHeartbeat(currentUploadingHash)
+  isUploadChannelClosed = true
+  uploadChannel.close()
+})
+// -----------------------
+
 // 大文件分片上传
 const CHUNK_SIZE = 1024 * 1024  // 1MB
 const fileChunksList = ref<Blob[]>([])//原始分片数组
@@ -93,7 +173,7 @@ const fileDetailList = ref<FileChunkType[]>([])//分片详细信息数组
 
 
 
-const uploadToBehind = async (existChunks = []) => {
+const uploadToBehind = async (existChunks: string[] = []) => {
   // 构造FormDatas数组
   const formDatas = fileDetailList.value
     .filter((item) => {
@@ -115,15 +195,15 @@ const uploadToBehind = async (existChunks = []) => {
 
   let completedCount = 0; // 已完成任务数
   let isError = false; // 是否发生错误（用于熔断）
-  let resolveAll: any;
-  let rejectAll: any;
-  const allDone = new Promise((resolve, reject) => {
+  let resolveAll: () => void = () => {}
+  let rejectAll: (reason?: unknown) => void = () => {}
+  const allDone = new Promise<void>((resolve, reject) => {
     resolveAll = resolve;
     rejectAll = reject;
   });
 
   //  构建“待执行任务队列”
-  const taskQueue = formDatas.map((item, index) => {
+  const taskQueue = formDatas.map((item) => {
     // 封装单个分片上传任务
     return async function uploadTask(retry = 3): Promise<void> {
       if (isError) return;
@@ -135,7 +215,7 @@ const uploadToBehind = async (existChunks = []) => {
         if (completedCount === total) {
           resolveAll();
         }
-      } catch (err) {
+      } catch {
         if (retry > 0) {
           // 还有重试机会，重新执行当前任务
           return uploadTask(retry - 1);
@@ -190,7 +270,7 @@ const uploadToBehind = async (existChunks = []) => {
       user_id: userStore.userId,
       content: formData.value.content,
     })
-    ElMessage.success(res.message)
+    ElMessage.success(getMessage(res))
   }
   else {
     // 编辑文章
@@ -202,7 +282,7 @@ const uploadToBehind = async (existChunks = []) => {
       content: formData.value.content,
       id: props.currentDetailInfo!.id
     })
-    ElMessage.success(res.message)
+    ElMessage.success(getMessage(res))
     window.location.reload()
   }
   formData.value = { title: '', imgURL: new Blob(), content: '' }
@@ -210,6 +290,7 @@ const uploadToBehind = async (existChunks = []) => {
   editor.value?.setHTML('')//清空编辑器内容
   return
 }
+
 
 // 秒传
 const verify = async (fileHash: string, fileName: string) => {
@@ -225,6 +306,7 @@ const videoUpload = async () => {
   // console.time('分片+hash时间');
 
   fullscreenLoading.value = true
+
   try {
     fileChunksList.value = [] // 清空分片数组
     const rawValue = toRaw(videoUploadFile.value)//作用：获取原始文件对象，避免响应式代理
@@ -237,8 +319,8 @@ const videoUpload = async () => {
 
     // 创建多个 worker，分配分片计算任务，收集结果并扁平化返回
     const cutFile = (file: File) => {
-      return new Promise<any[]>((resolve, reject) => {
-        const result: any[] = []
+      return new Promise<WorkerChunkType[]>((resolve, reject) => {
+        const result: WorkerChunkType[][] = []
         let finishCount = 0
         for (let i = 0; i < THREAD_COUNT; i++) {
           const worker = new Worker(new URL('../util/worker.js', import.meta.url), { type: 'module' })
@@ -250,15 +332,15 @@ const videoUpload = async () => {
           worker.postMessage({ file, CHUNK_SIZE, start, end })
           worker.onmessage = (e: MessageEvent) => {
             // worker 返回一个数组（该区间的 chunk 列表）
-            result[i] = e.data
+            result[i] = e.data as WorkerChunkType[]
             worker.terminate()
             finishCount++
             if (finishCount === THREAD_COUNT) {
               // 扁平化并返回
-              resolve((result as any[]).flat())
+              resolve(result.flat())
             }
           }
-          worker.onerror = (err) => {
+          worker.onerror = () => {
             worker.terminate()
             reject('文件解析失败，请检查网络连接')
           }
@@ -269,7 +351,7 @@ const videoUpload = async () => {
     // 调用 cutFile 获取所有 chunk 对象（每个对象包含 index, blob, hash）
     const chunks = await cutFile(rawValue as File)
     // 按 index 排序            --1.25:这个排序似乎是多余的
-    chunks.sort((a: any, b: any) => a.index - b.index)
+    chunks.sort((a, b) => a.index - b.index)
 
     // 用每个分片的 hash 拼接后再计算整体 hash（避免在主线程读大量 ArrayBuffer）
     const spark = new SparkMD5()
@@ -278,16 +360,21 @@ const videoUpload = async () => {
     }
     const fileHash = spark.end()
 
-    // 把 blob 列表赋给 fileChunksList 保持原逻辑不变
-    fileChunksList.value = chunks.map((c: any) => c.blob)
-    // console.log('fileHash', fileHash)
-    console.timeEnd('分片+hash时间')
+    // 只有拿到 navigator.locks 锁的标签页才会进入这里，避免重复调用后端接口。
+    const uploadFile = async () => {
+      startUploadHeartbeat(fileHash)
+      try {
+
+        // 把 blob 列表赋给 fileChunksList 保持原逻辑不变
+        fileChunksList.value = chunks.map(c => c.blob)
+        // console.log('fileHash', fileHash)
+        console.timeEnd('分片+hash时间')
 
 
     // 秒传   ---如果改文件已经上传过就不再上传分片，直接添加文章
-    const data = await verify(fileHash as string, rawValue.name)
-    const isExists = data.isExists
-    if (isExists) {
+        const data = await verify(fileHash as string, rawValue.name)
+        const isExists = data.isExists
+        if (isExists) {
       //添加文章
       if (props.panelType === 'public') {
         const res = await addLargeFileArticleService({
@@ -299,7 +386,7 @@ const videoUpload = async () => {
         })
         // console.log('成功添加', res);
         fullscreenLoading.value = false
-        ElMessage.success(res.message)
+        ElMessage.success(getMessage(res))
       } else {
         // 编辑文章
         const res = await editLargeFileArticleService({
@@ -312,14 +399,15 @@ const videoUpload = async () => {
         })
         fullscreenLoading.value = false
         window.location.reload()
-        ElMessage.success(res.message)
+        ElMessage.success(getMessage(res))
 
       }
       formData.value = { title: '', imgURL: new Blob(), content: '' }
       backupURL.value = '' // 清空图片回显
       editor.value?.setHTML('')//清空编辑器内容
 
-    } else {
+      // 秒传成功，立即解锁
+        } else {
       // 构造详细分片数组
       fileDetailList.value = fileChunksList.value.map((item, index) => {
         return {
@@ -331,8 +419,41 @@ const videoUpload = async () => {
       })
       // 上传视频切片
       await uploadToBehind(data.existChunks)
-      fullscreenLoading.value = false
-      // console.log('结束上传：', new Date());
+
+      // 上传完成，解锁
+          fullscreenLoading.value = false
+          // console.log('结束上传：', new Date());
+        }
+      } finally {
+        // 无论成功、失败还是关闭页面，都通知其他标签页清除上传状态
+        stopUploadHeartbeat(fileHash)
+      }
+    }
+
+    // navigator.locks 会原子地完成“检查并占用锁”，避免两个标签页同时开始上传
+    if ('locks' in navigator) {
+      const didStart = await navigator.locks.request(
+        `upload:${fileHash}`,
+        { ifAvailable: true },
+        async (lock) => {
+          // lock 为 null 说明另一个标签页已拿到同一文件的锁；当前页面不排队，直接提示。
+          if (!lock) return false
+          await uploadFile()
+          return true
+        }
+      )
+      if (!didStart) {
+        ElMessage.warning('检测到其他标签页正在上传此文件')
+        fullscreenLoading.value = false
+      }
+    } else {
+      // 旧浏览器没有 navigator.locks 时，降级使用 BroadcastChannel 状态判断
+      if (isRemoteUploading(fileHash)) {
+        ElMessage.warning('检测到其他标签页正在上传此文件')
+        fullscreenLoading.value = false
+        return
+      }
+      await uploadFile()
     }
   } catch (err) {
     console.error('上传出错:', err)
@@ -363,7 +484,7 @@ const submitForm = async () => {
     if (props.panelType === 'edit') {
       if (props.currentDetailInfo && props.currentDetailInfo.id !== undefined) {
         fd.append('id', String(props.currentDetailInfo.id))
-        const res = await editArticleService(fd)
+        await editArticleService(fd)
         // console.log('res:', res);
         fullscreenLoading.value = false
         ElMessage.success('编辑成功!')
@@ -545,4 +666,5 @@ watch(() => props.currentDetailInfo, (newVal) => {
 
 }
 
-// }</style>
+// }
+</style>

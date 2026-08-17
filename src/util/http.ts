@@ -25,19 +25,30 @@ const instance: AxiosInstance = axios.create({
 });
 
 // token刷新函数
+let promise: Promise<any> | null = null;
 const refreshTokenFun = async () => {
-  console.log("进入refreshToken");
-  const userStore = useUserStore();
-  const res = await instance.get("/api/refreshToken", {
-    headers: {
-      Authorization: userStore.refreshToken,
-    },
-    _isRefresh: true, //判断现在发送的是不是刷新token的请求，避免请求拦截器携带了过期的短token
-  } as MyRequestConfig);
-  // console.log("重新请求了:", res);
-  const { refresh_token, access_token } = res.data;
-  userStore.refreshToken = refresh_token;
-  userStore.token = access_token;
+  if (promise) {
+    return promise;
+  }
+  promise = new Promise(async (resolve) => {
+    console.log("进入refreshToken");
+    const userStore = useUserStore();
+    const res = await instance.get("/api/refreshToken", {
+      headers: {
+        Authorization: userStore.refreshToken,
+      },
+      _isRefresh: true, //判断现在发送的是不是刷新token的请求，避免请求拦截器携带了过期的短token
+    } as MyRequestConfig);
+    // console.log("重新请求了:", res);
+    const { refresh_token, access_token } = res.data;
+    userStore.refreshToken = refresh_token;
+    userStore.token = access_token;
+    resolve(res);
+  });
+  promise.finally(() => {
+    promise = null;
+  });
+  return promise;
 };
 
 // 请求拦截器

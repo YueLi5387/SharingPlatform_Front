@@ -4,6 +4,7 @@ import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
+import { registerSW } from "virtual:pwa-register";
 
 import App from "./App.vue";
 import router from "./router";
@@ -11,6 +12,7 @@ import router from "./router";
 import autoInjectMountTime from "./util/countTime";
 
 const app = createApp(App);
+registerSW({ immediate: true });
 
 app.use(createPinia().use(piniaPluginPersistedstate));
 app.use(router);

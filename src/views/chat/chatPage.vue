@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, nextTick, onUnmounted, computed, onMounted, watch } from 'vue'
+import { ref, nextTick, onUnmounted, computed, onMounted } from 'vue'
 import { io } from "socket.io-client";
 import { useUserStore } from '@/stores/user';
-import { da } from 'element-plus/es/locales.mjs';
 import type { ChatMessageType } from '@/types/user';
 const userStore = useUserStore()
 const socket = io("http://localhost:8080");
@@ -11,14 +10,14 @@ let listIdCounter = -1;// 用于生成唯一ID ---系统专用，所以取负数
 //定义虚拟列表要用到的变量
 //信息总列表
 const messages = ref<Array<ChatMessageType>>([])
-let startIndex = ref(0)//从几号数据开始渲染
+const startIndex = ref(0)//从几号数据开始渲染
 // let size = ref(10)//一次渲染几条
 const renderList = computed(() => {
   return messages.value.slice(startIndex.value, startIndex.value + size.value)
 })
 const totalSize = computed(() => messages.value.length)//共多少条数据
 const itemHeight = 86//每条数据的高度，固定高度
-let containerHeight = ref(580)//容器高度，待会在onMounted里面初始化
+const containerHeight = ref(580)//容器高度，待会在onMounted里面初始化
 const chatMainRef = ref<HTMLElement | null>(null)//待会由来获取容器高度
 // 所有数据的实际高度
 const spaceHeight = computed(() => {
@@ -102,7 +101,7 @@ const sendMessage = () => {
 // 节流   --作用，sendMessage提供了双层防护，如果input框为空就不会发送信息，发完信息后就把input框清空，但是程序还是会触发多次sendMessage事件，哪怕判定输入框为空会return,加入节流就可以减少触发无用sendmessage的次数，优化性能
 const throttle = (fn: Function, delay: number) => {
   let timer: number | null = null
-  return function (...args: any[]) {
+  return function (this: any, ...args: any[]) {
     if (timer) return
     timer = setTimeout(() => {
       fn.apply(this, args)
